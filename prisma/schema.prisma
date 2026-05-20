@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  CREATOR
+  BUYER
+  REVIEWER
+  OPERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ScriptStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  LOCKED
+  IN_USE
+  SOLD
+  OFFLINE
+  DISPUTED
+}
+
+enum ScriptLockStatus {
+  ACTIVE
+  EXPIRED
+  RELEASED
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  phone              String?             @unique
+  name               String
+  role               UserRole            @default(USER)
+  passwordHash       String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  scripts            Script[]            @relation("AuthorScripts")
+  lockedScripts      Script[]            @relation("LockedScripts")
+  locks              ScriptLock[]
+  creditAccount      CreditAccount?
+  creditTransactions CreditTransaction[]
+  comments           ScriptComment[]
+}
+
+model Script {
+  id             String          @id @default(cuid())
+  title          String
+  genre          String?
+  tags           String[]        @default([])
+  summary        String?
+  content        String
+  wordCount      Int             @default(0)
+  status         ScriptStatus    @default(DRAFT)
+  aiScore        Int?
+  authorId       String
+  author         User            @relation("AuthorScripts", fields: [authorId], references: [id])
+  lockedById     String?
+  lockedBy       User?           @relation("LockedScripts", fields: [lockedById], references: [id])
+  lockedAt       DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  locks          ScriptLock[]
+  scores         ScriptScore[]
+  comments       ScriptComment[]
+  downloads      ScriptDownload[]
+  usageLogs      ScriptUsageLog[]
+
+  @@index([status])
+  @@index([genre])
+  @@index([authorId])
+}
+
+model ScriptLock {
+  id        String           @id @default(cuid())
+  scriptId  String
+  userId    String
+  status    ScriptLockStatus @default(ACTIVE)
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+  script    Script           @relation(fields: [scriptId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([scriptId, status])
+  @@index([userId])
+}
+
+model ScriptScore {
+  id                  String   @id @default(cuid())
+  scriptId            String
+  total               Int
+  conflict            Int
+  logic               Int
+  pacing              Int
+  commercialPotential Int
+  aiRate              Int
+  suggestions         Json
+  createdAt           DateTime @default(now())
+  script              Script   @relation(fields: [scriptId], references: [id])
+}
+
+model ScriptComment {
+  id        String   @id @default(cuid())
+  scriptId  String
+  userId    String
+  rating    Int?
+  content   String
+  createdAt DateTime @default(now())
+  script    Script   @relation(fields: [scriptId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ScriptDownload {
+  id        String   @id @default(cuid())
+  scriptId  String
+  userId    String
+  format    String
+  createdAt DateTime @default(now())
+  script    Script   @relation(fields: [scriptId], references: [id])
+
+  @@index([scriptId])
+  @@index([userId])
+}
+
+model ScriptUsageLog {
+  id        String   @id @default(cuid())
+  scriptId  String
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  script    Script   @relation(fields: [scriptId], references: [id])
+
+  @@index([scriptId])
+  @@index([userId])
+}
+
+model CreditAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  reason      String
+  referenceId String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model AiTask {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  status    String
+  input     Json
+  output    Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model AiPrompt {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  template  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

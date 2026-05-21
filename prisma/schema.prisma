@@ -49,6 +49,8 @@ model User {
   creditAccount      CreditAccount?
   creditTransactions CreditTransaction[]
   comments           ScriptComment[]
+  downloads          ScriptDownload[]
+  usageLogs          ScriptUsageLog[]
 }
 
 model Script {
@@ -125,6 +127,7 @@ model ScriptDownload {
   format    String
   createdAt DateTime @default(now())
   script    Script   @relation(fields: [scriptId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([scriptId])
   @@index([userId])
@@ -138,6 +141,7 @@ model ScriptUsageLog {
   metadata  Json?
   createdAt DateTime @default(now())
   script    Script   @relation(fields: [scriptId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([scriptId])
   @@index([userId])

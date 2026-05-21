@@ -23,16 +23,28 @@
 
 ```bash
 npm install
-cp .env.example .env
-docker compose up -d postgres redis
 npm run prisma:generate
-npm run prisma:migrate
 npm run dev
 ```
 
-前端默认：http://localhost:3000
+前端默认：http://127.0.0.1:3000
 
-后端默认：http://localhost:4000
+后端默认：http://127.0.0.1:4000
+
+## 运行模式
+
+默认可以直接进入演示模式：
+
+- 未配置 `DATABASE_URL` 时，API 使用内存数据启动，便于本地快速预览。
+- 配置 `DATABASE_URL` 后，可继续执行 `npm run prisma:migrate` 切换到 PostgreSQL。
+
+如果你本机安装了 Docker，也可以用下面方式启动 PostgreSQL 和 Redis：
+
+```bash
+docker compose up -d postgres redis
+cp .env.example .env
+npm run prisma:migrate
+```
 
 ## 目录
 

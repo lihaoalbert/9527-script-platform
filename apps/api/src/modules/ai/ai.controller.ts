@@ -10,6 +10,21 @@ export class AiController {
     return this.aiService.createOutline(body);
   }
 
+  @Post("generate-script")
+  generateScript(
+    @Body()
+    body: {
+      genre: string;
+      premise: string;
+      targetWords?: number;
+      episodes?: number;
+      tone?: string;
+      protagonist?: string;
+    }
+  ) {
+    return this.aiService.generateScript(body);
+  }
+
   @Post("score")
   score(@Body() body: { scriptId?: string; content: string }) {
     return this.aiService.scoreScript(body.content);

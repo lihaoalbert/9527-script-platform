@@ -17,6 +17,8 @@
 - 前端：`Next.js` + `React` + `TypeScript`
 - 后端：`NestJS` + `TypeScript`
 - 数据库：`PostgreSQL` + `Prisma`
+- AI：`Deepseek V4 Pro` (`deepseek-v4-pro`，API: `https://api.deepseek.com/v1/chat/completions`)
+- Redis：`BullMQ` 队列（本地 `localhost:6379`）
 - 当前远程数据库：阿里云 PostgreSQL
 
 ## 关键运行方式
@@ -62,7 +64,7 @@
 
 ## 前端页面结构
 
-当前首页已经从“单页堆叠控件”调整为工作台结构。
+当前首页已经从”单页堆叠控件”调整为工作台结构。
 
 主结构：
 
@@ -77,11 +79,28 @@ AI创作 Studio 当前分为三栏：
 2. 中栏：项目 brief、大纲生成
 3. 右栏：草案输出、评分润色
 
+### Studio V2（`/studio-v2`）
+
+新版三栏创作工作室，以 AI 对话为核心：
+
+- **左栏**：项目文件导航（AI 生成的内容自动保存为文件）
+- **中栏**：AI 对话区，支持切换”编剧小Q”和”审核官”两个 AI 角色
+- **右栏**：文件预览/结果展示
+- 布局自适应屏幕宽度，左右各 15px 留白
+- 窄屏（<860px）自动折叠为单栏对话模式
+
 目标是让创作者清楚知道：
 
 - 现在在做哪一步
 - 下一步该点什么
 - AI 输出会落到哪里
+
+## AI 模型变更记录
+
+- **2026-05-21**：AI 从 MiniMax (`MiniMax-M2.7`) 迁移到 Deepseek V4 Pro (`deepseek-v4-pro`)
+  - API 端点：`https://api.deepseek.com/v1/chat/completions`
+  - 响应格式与 OpenAI 兼容
+  - 旧模型 `deepseek-chat` 将于 2026-07-24 弃用，已提前使用新模型名
 
 ## 当前 API 能力
 

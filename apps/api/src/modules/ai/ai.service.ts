@@ -4,11 +4,11 @@ import { Injectable } from "@nestjs/common";
 export class AiService {
   private readonly apiKey: string;
   private readonly model: string;
-  private readonly baseUrl = "https://api.minimax.chat/v1/text/chatcompletion_v2";
+  private readonly baseUrl = "https://api.deepseek.com/v1/chat/completions";
 
   constructor() {
     this.apiKey = process.env.AI_API_KEY ?? "";
-    this.model = process.env.AI_MODEL ?? "MiniMax-M2.7";
+    this.model = process.env.AI_MODEL ?? "deepseek-v4-pro";
   }
 
   private async chat(messages: Array<{ role: string; content: string }>, temperature = 0.7): Promise<string> {
@@ -31,7 +31,7 @@ export class AiService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`MiniMax API error: ${response.status} - ${error}`);
+      throw new Error(`Deepseek API error: ${response.status} - ${error}`);
     }
 
     const data = (await response.json()) as { choices?: Array<{ message: { content: string } }> };
@@ -39,7 +39,7 @@ export class AiService {
   }
 
   async createOutline(input: { genre: string; premise: string }) {
-    const provider = this.apiKey ? "minimax" : "mock";
+    const provider = this.apiKey ? "deepseek" : "mock";
 
     if (!this.apiKey) {
       return {
@@ -96,7 +96,7 @@ export class AiService {
     const targetWords = input.targetWords ?? 18000;
     const protagonist = input.protagonist?.trim() || "女主";
     const tone = input.tone?.trim() || "强冲突、快节奏";
-    const provider = this.apiKey ? "minimax" : "mock";
+    const provider = this.apiKey ? "deepseek" : "mock";
 
     if (!this.apiKey) {
       const title = `${input.genre}《${protagonist}反转计划》`;
@@ -228,5 +228,46 @@ export class AiService {
         ]
       };
     }
+  }
+
+  async reviewScript(content: string, question?: string) {
+    const provider = this.apiKey ? "deepseek" : "mock";
+
+    if (!this.apiKey) {
+      return {
+        provider,
+        review: `【审核意见】
+
+🔴 逻辑问题：
+- 女主在第三集的行为动机不清晰，为什么要帮男主挡酒？
+- 男主突然爱上女主的时间节点太突兀
+
+🟡 节奏问题：
+- 第一集前半段铺垫过长，建议压缩
+- 第五集到第八集节奏偏慢
+
+🟢 亮点：
+- 开场的冲突设计很抓人
+- 对白简洁有力，符合角色性格
+
+💡 建议：
+- 给女主增加一个更强的个人目标
+- 考虑在第六集增加一个意外的盟友`,
+      };
+    }
+
+    const reviewPrompt = question
+      ? `你是一个资深剧本审核官。用户提出了一个关于剧本的问题，请用犀利的中文回答。\n\n剧本内容：\n${content.slice(0, 3000)}\n\n用户问题：${question}`
+      : `你是一个资深剧本审核官。请对以下剧本内容进行严格审核，用犀利的中文直接指出问题。\n\n剧本内容：\n${content.slice(0, 3000)}`;
+
+    const result = await this.chat([
+      { role: "system", content: reviewPrompt },
+      { role: "user", content: "请审核这个剧本" }
+    ], 0.5);
+
+    return {
+      provider,
+      review: result,
+    };
   }
 }

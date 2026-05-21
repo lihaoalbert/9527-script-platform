@@ -29,4 +29,9 @@ export class AiController {
   score(@Body() body: { scriptId?: string; content: string }) {
     return this.aiService.scoreScript(body.content);
   }
+
+  @Post("review")
+  review(@Body() body: { content: string; question?: string }) {
+    return this.aiService.reviewScript(body.content, body.question);
+  }
 }

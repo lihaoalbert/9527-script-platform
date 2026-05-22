@@ -226,20 +226,23 @@ enum ProjectPhase {
 }
 
 model Project {
-  id            String        @id @default(cuid())
-  name          String
-  genre         String?
-  status        ProjectStatus @default(PLANNING)
-  currentPhase  ProjectPhase  @default(STORY_KERNEL)
-  ownerId       String
-  owner         User          @relation(fields: [ownerId], references: [id])
-  planLockedAt  DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  plan          ProjectPlan?
-  episodes      ProjectEpisode[]
-  messages      ConversationMessage[]
-  summaries     ConversationSummary[]
+  id                 String        @id @default(cuid())
+  name               String
+  genre              String?
+  status             ProjectStatus @default(PLANNING)
+  currentPhase       ProjectPhase  @default(STORY_KERNEL)
+  ownerId            String
+  owner              User          @relation(fields: [ownerId], references: [id])
+  planLockedAt       DateTime?
+  autoMode           Boolean       @default(false)
+  episodeTargetWords Int           @default(5000)
+  episodeBatchSize   Int           @default(5)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  plan               ProjectPlan?
+  episodes           ProjectEpisode[]
+  messages           ConversationMessage[]
+  summaries          ConversationSummary[]
 
   @@index([ownerId])
   @@index([status])

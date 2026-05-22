@@ -75,6 +75,9 @@ export default function StudioPage() {
   const [rightView, setRightView] = useState<"plan" | "episode" | "scores" | "prompts">("plan");
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
 
+  // Auto mode
+  const [autoRunning, setAutoRunning] = useState(false);
+
   // Prompts
   const [prompts, setPrompts] = useState<Array<{ key: string; title: string; template: string; enabled: boolean; isCustomized: boolean }>>([]);
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
@@ -219,6 +222,60 @@ export default function StudioPage() {
     } catch (e) { console.error(e); }
   }
 
+  async function startAutoMode() {
+    if (!activeProjectId) return;
+    try {
+      await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/start`, { method: "POST" });
+      setAutoRunning(true);
+    } catch (e) { console.error(e); }
+  }
+
+  async function stopAutoMode() {
+    if (!activeProjectId) return;
+    try {
+      await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/stop`, { method: "POST" });
+      setAutoRunning(false);
+      await selectProject(activeProjectId);
+    } catch (e) { console.error(e); }
+  }
+
+  // Poll for new messages when auto mode is running
+  useEffect(() => {
+    if (!autoRunning || !activeProjectId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/studio/projects/${activeProjectId}/messages?limit=80`);
+        if (res.ok) {
+          const msgs = await res.json();
+          setMessages(msgs.reverse());
+          const detailRes = await fetch(`${API}/studio/projects/${activeProjectId}`);
+          if (detailRes.ok) setProjectDetail(await detailRes.json());
+          // Check if still running
+          const statusRes = await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
+          if (statusRes.ok) {
+            const status = await statusRes.json();
+            if (!status.running) setAutoRunning(false);
+          }
+        }
+      } catch (e) { /* ignore poll errors */ }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [autoRunning, activeProjectId]);
+
+  // Check auto mode status on project select
+  useEffect(() => {
+    if (!activeProjectId) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
+        if (res.ok) {
+          const status = await res.json();
+          setAutoRunning(status.running);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  }, [activeProjectId]);
+
   async function forceLockEpisode(epNum: number) {
     if (!activeProjectId) return;
     try {
@@ -345,6 +402,19 @@ export default function StudioPage() {
             <div className="phaseIndicator">
               {PHASE_LABELS[projectDetail.currentPhase] ?? projectDetail.currentPhase}
             </div>
+          )}
+          {projectDetail && (
+            <button
+              className={`autoModeToggle ${autoRunning ? "active" : ""}`}
+              onClick={() => { autoRunning ? void stopAutoMode() : void startAutoMode(); }}
+              title={autoRunning ? "停止自动模式" : "开启自动模式"}
+            >
+              {autoRunning ? (
+                <><LoaderCircle size={14} className="spin" /> 自动中</>
+              ) : (
+                <><Sparkles size={14} /> 自动</>
+              )}
+            </button>
           )}
         </div>
 

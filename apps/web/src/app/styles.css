@@ -1680,6 +1680,33 @@ li {
   white-space: nowrap;
 }
 
+/* ─── Auto Mode Toggle ─── */
+
+.autoModeToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #f4f3ef;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: auto;
+  transition: all 0.15s;
+}
+
+.autoModeToggle:hover { background: #e5e4df; color: var(--ink); }
+
+.autoModeToggle.active {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
 /* ─── Message Decision Badge ─── */
 
 .messageDecision {

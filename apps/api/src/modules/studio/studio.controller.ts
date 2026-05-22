@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { AutoModeService } from "./auto-mode.service";
 import { PromptService } from "./prompt.service";
 import { StudioService } from "./studio.service";
 
@@ -7,6 +8,7 @@ export class StudioController {
   constructor(
     private readonly studioService: StudioService,
     private readonly promptService: PromptService,
+    private readonly autoModeService: AutoModeService,
   ) {}
 
   @Post("projects")
@@ -97,5 +99,22 @@ export class StudioController {
   @Delete("prompts/:key")
   resetPrompt(@Param("key") key: string) {
     return this.promptService.resetPrompt(key);
+  }
+
+  @Post("projects/:id/auto-mode/start")
+  startAutoMode(@Param("id") id: string) {
+    void this.autoModeService.startAutoMode(id);
+    return { started: true, projectId: id };
+  }
+
+  @Post("projects/:id/auto-mode/stop")
+  stopAutoMode(@Param("id") id: string) {
+    this.autoModeService.stopAutoMode(id);
+    return { stopped: true, projectId: id };
+  }
+
+  @Get("projects/:id/auto-mode/status")
+  autoModeStatus(@Param("id") id: string) {
+    return { running: this.autoModeService.isRunning(id), projectId: id };
   }
 }

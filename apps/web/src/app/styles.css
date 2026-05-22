@@ -1500,3 +1500,527 @@ li {
     grid-template-columns: 1fr auto;
   }
 }
+
+/* ─── Project List (Studio Left Panel) ─── */
+
+.projectList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.projectListItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.projectListItem:hover {
+  background: #f4f3ef;
+}
+
+.projectListItem.active {
+  background: #f0faf8;
+  border-color: var(--accent);
+}
+
+.projectItemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.projectItemName {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectStatus {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.projectStatus.statusPLANNING { background: #fef3c7; color: #92400e; }
+.projectStatus.statusEPISODES { background: #dbeafe; color: #1e40af; }
+.projectStatus.statusCOMPLETED { background: #d1fae5; color: #065f46; }
+.projectStatus.statusARCHIVED { background: #f3f4f6; color: #6b7280; }
+
+.projectItemMeta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ─── Phase Progress ─── */
+
+.phaseProgress {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.phaseLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.phaseSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.phaseStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.phaseStep.done { color: var(--accent); }
+.phaseStep.current { color: var(--ink); font-weight: 600; }
+
+.phaseDot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: #f4f3ef;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.phaseStep.done .phaseDot { background: #d1fae5; color: var(--accent); }
+.phaseStep.current .phaseDot { background: var(--accent); color: #fff; }
+
+.phaseStepLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advanceBtn, .lockPlanBtn {
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+  font-size: 12px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.advanceBtn { background: #f4f3ef; color: var(--ink); }
+.advanceBtn:hover { background: #e5e4df; }
+.lockPlanBtn { background: var(--accent-2); }
+.lockPlanBtn:hover { background: #92400e; }
+
+/* ─── Episode Mini List ─── */
+
+.episodeMiniList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.episodeMiniItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  width: 100%;
+}
+
+.episodeMiniItem:hover { background: #f4f3ef; color: var(--ink); }
+.episodeMiniItem.locked { color: var(--accent); }
+.episodeMiniItem.active { background: #f0faf8; font-weight: 600; }
+
+/* ─── Phase Indicator (Chat Header) ─── */
+
+.phaseIndicator {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: #f0faf8;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* ─── Message Decision Badge ─── */
+
+.messageDecision {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+/* ─── Plan View (Right Panel) ─── */
+
+.planView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.planSections {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planSection {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.planSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #faf9f7;
+  border: 0;
+  width: 100%;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+}
+
+.planSectionHeader:hover { background: #f4f3ef; }
+
+.planSectionStatus {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.planSectionBody {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.planHint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.planJson {
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  color: var(--ink);
+}
+
+.lockedBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: #d1fae5;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* ─── Episode View (Right Panel) ─── */
+
+.episodeView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.episodeList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.episodeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.episodeItem:hover { border-color: var(--accent); }
+.episodeItem.locked { border-color: #9ed9d1; background: #f9fdfc; }
+
+.episodeItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.episodeNumber {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.episodeTitle {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.episodeItemRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.episodeScoreBadge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.episodeScoreBadge.pass { background: #d1fae5; color: #065f46; }
+.episodeScoreBadge.fail { background: #fef3c7; color: #92400e; }
+
+.episodeStatus {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.episodeStatus.statusLOCKED { background: #d1fae5; color: #065f46; }
+.episodeStatus.statusREVISION { background: #fef3c7; color: #92400e; }
+.episodeStatus.statusIN_REVIEW { background: #dbeafe; color: #1e40af; }
+.episodeStatus.statusDRAFT { background: #f3f4f6; color: #6b7280; }
+
+.revisionBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-2);
+  background: #fff7ed;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.episodeDetail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  margin-bottom: 10px;
+  min-height: auto;
+}
+
+.backBtn:hover { color: var(--ink); }
+
+/* ─── Score Breakdown ─── */
+
+.scoreBreakdown {
+  margin-top: 12px;
+  padding: 14px;
+  background: #faf9f7;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.scoreBreakdown h4 {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.scoreGrid2 {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scoreBar {
+  display: grid;
+  grid-template-columns: 80px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.scoreBarLabel {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.scoreBarTrack {
+  height: 8px;
+  background: #e5e4df;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.scoreBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.scoreBarValue {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.scoreSuggestions {
+  margin-top: 12px;
+}
+
+.scoreSuggestions h4 {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.scoreSuggestion {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.deadlockWarning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deadlockWarning button {
+  background: #dc2626;
+  font-size: 11px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+/* ─── Modal ─── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modalContent {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: min(400px, 90vw);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modalHeader h3 { font-size: 16px; }
+
+.modalBody {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalBody label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line);
+}

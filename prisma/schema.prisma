@@ -51,6 +51,7 @@ model User {
   comments           ScriptComment[]
   downloads          ScriptDownload[]
   usageLogs          ScriptUsageLog[]
+  projects           Project[]
 }
 
 model Script {
@@ -190,4 +191,129 @@ model AiPrompt {
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Studio Project Models ───
+
+enum ProjectStatus {
+  PLANNING
+  EPISODES
+  COMPLETED
+  ARCHIVED
+}
+
+enum EpisodeStatus {
+  DRAFT
+  IN_REVIEW
+  REVISION
+  LOCKED
+}
+
+enum MessageRole {
+  USER
+  WRITER
+  REVIEWER
+  SYSTEM
+}
+
+enum ProjectPhase {
+  STORY_KERNEL
+  WORLD_BUILDING
+  CHARACTERS
+  EPISODE_OUTLINES
+  PRODUCTION_NOTES
+  EPISODE_GENERATION
+}
+
+model Project {
+  id            String        @id @default(cuid())
+  name          String
+  genre         String?
+  status        ProjectStatus @default(PLANNING)
+  currentPhase  ProjectPhase  @default(STORY_KERNEL)
+  ownerId       String
+  owner         User          @relation(fields: [ownerId], references: [id])
+  planLockedAt  DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  plan          ProjectPlan?
+  episodes      ProjectEpisode[]
+  messages      ConversationMessage[]
+  summaries     ConversationSummary[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model ProjectPlan {
+  id              String    @id @default(cuid())
+  projectId       String    @unique
+  storyKernel     Json      @default("{}")
+  worldBuilding   Json      @default("{}")
+  characters      Json      @default("[]")
+  episodeOutlines Json      @default("[]")
+  productionNotes Json      @default("{}")
+  version         Int       @default(1)
+  lockedAt        DateTime?
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProjectEpisode {
+  id            String        @id @default(cuid())
+  projectId     String
+  episodeNumber Int
+  title         String
+  content       String
+  status        EpisodeStatus @default(DRAFT)
+  scoreId       String?
+  version       Int           @default(1)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  score         EpisodeScore?
+
+  @@unique([projectId, episodeNumber])
+  @@index([projectId, status])
+}
+
+model EpisodeScore {
+  id                   String   @id @default(cuid())
+  episodeId            String   @unique
+  conflict             Int
+  logic                Int
+  pacing               Int
+  characterConsistency Int
+  commercialPotential  Int
+  originality          Int
+  total                Int
+  suggestions          Json     @default("[]")
+  createdAt            DateTime @default(now())
+  episode              ProjectEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+}
+
+model ConversationMessage {
+  id        String      @id @default(cuid())
+  projectId String
+  role      MessageRole
+  content   String
+  phase     ProjectPhase?
+  step      Int?
+  decision  Json?
+  createdAt DateTime    @default(now())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model ConversationSummary {
+  id             String       @id @default(cuid())
+  projectId      String
+  phase          ProjectPhase
+  summary        String
+  startMessageId String
+  endMessageId   String
+  createdAt      DateTime     @default(now())
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, phase])
 }

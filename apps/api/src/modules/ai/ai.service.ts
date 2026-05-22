@@ -11,7 +11,7 @@ export class AiService {
     this.model = process.env.AI_MODEL ?? "deepseek-v4-pro";
   }
 
-  private async chat(messages: Array<{ role: string; content: string }>, temperature = 0.7): Promise<string> {
+  async chatRaw(messages: Array<{ role: string; content: string }>, temperature = 0.7): Promise<string> {
     if (!this.apiKey) {
       throw new Error("AI_API_KEY is not configured");
     }
@@ -61,7 +61,7 @@ export class AiService {
   "nextSteps": ["建议1", "建议2", ...]
 }`;
 
-    const content = await this.chat([
+    const content = await this.chatRaw([
       { role: "system", content: systemPrompt },
       { role: "user", content: `题材：${input.genre}\n核心设定：${input.premise}` }
     ], 0.8);
@@ -146,7 +146,7 @@ export class AiService {
   "content": "正文试写内容"
 }`;
 
-    const content = await this.chat([
+    const content = await this.chatRaw([
       { role: "system", content: systemPrompt },
       { role: "user", content: `题材：${input.genre}\n主角：${protagonist}\n风格：${tone}\n核心设定：${input.premise}\n目标集数：${episodes}集\n目标字数：约${targetWords}字` }
     ], 0.75);
@@ -200,7 +200,7 @@ export class AiService {
   "suggestions": ["建议1", "建议2", "建议3"]
 }`;
 
-    const result = await this.chat([
+    const result = await this.chatRaw([
       { role: "system", content: systemPrompt },
       { role: "user", content: `请评分以下剧本：\n\n${content.slice(0, 5000)}` }
     ], 0.3);
@@ -260,7 +260,7 @@ export class AiService {
       ? `你是一个资深剧本审核官。用户提出了一个关于剧本的问题，请用犀利的中文回答。\n\n剧本内容：\n${content.slice(0, 3000)}\n\n用户问题：${question}`
       : `你是一个资深剧本审核官。请对以下剧本内容进行严格审核，用犀利的中文直接指出问题。\n\n剧本内容：\n${content.slice(0, 3000)}`;
 
-    const result = await this.chat([
+    const result = await this.chatRaw([
       { role: "system", content: reviewPrompt },
       { role: "user", content: "请审核这个剧本" }
     ], 0.5);

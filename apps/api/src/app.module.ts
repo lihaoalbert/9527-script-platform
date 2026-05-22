@@ -6,6 +6,7 @@ import { AiModule } from "./modules/ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CreditsModule } from "./modules/credits/credits.module";
 import { ScriptsModule } from "./modules/scripts/scripts.module";
+import { StudioModule } from "./modules/studio/studio.module";
 
 @Module({
   controllers: [AppController],
@@ -15,7 +16,8 @@ import { ScriptsModule } from "./modules/scripts/scripts.module";
     AuthModule,
     ScriptsModule,
     CreditsModule,
-    AiModule
+    AiModule,
+    StudioModule
   ]
 })
 export class AppModule {}

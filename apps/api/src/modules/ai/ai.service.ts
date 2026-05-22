@@ -11,9 +11,18 @@ export class AiService {
     this.model = process.env.AI_MODEL ?? "deepseek-v4-pro";
   }
 
-  async chatRaw(messages: Array<{ role: string; content: string }>, temperature = 0.7): Promise<string> {
+  async chatRaw(messages: Array<{ role: string; content: string }>, temperature = 0.7, jsonMode = false): Promise<string> {
     if (!this.apiKey) {
       throw new Error("AI_API_KEY is not configured");
+    }
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature,
+    };
+    if (jsonMode) {
+      body.response_format = { type: "json_object" };
     }
 
     const response = await fetch(this.baseUrl, {
@@ -22,11 +31,7 @@ export class AiService {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {

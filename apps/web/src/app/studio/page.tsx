@@ -505,8 +505,12 @@ export default function StudioPage() {
 // ─── Sub-components ───
 
 function PlanSection({ title, data, isArray }: { title: string; data: Record<string, unknown> | Record<string, unknown>[]; isArray?: boolean }) {
-  const [open, setOpen] = useState(false);
   const isEmpty = isArray ? (data as unknown[]).length === 0 : Object.keys(data as Record<string, unknown>).length === 0;
+  const [open, setOpen] = useState(!isEmpty);
+
+  useEffect(() => {
+    if (!isEmpty) setOpen(true);
+  }, [isEmpty]);
 
   return (
     <div className="planSection">

@@ -169,7 +169,7 @@ export class StudioService {
       // Add the user's new message
       messages.push({ role: "user", content: input.content });
 
-      const raw = await this.aiService.chatRaw(messages, input.targetPersona === "writer" ? 0.8 : 0.5);
+      const raw = await this.aiService.chatRaw(messages, input.targetPersona === "writer" ? 0.8 : 0.5, true);
 
       // Parse JSON response
       let parsed: { content: string; data?: Record<string, unknown> };
@@ -234,56 +234,77 @@ export class StudioService {
     phase: ProjectPhase,
     data: Record<string, unknown>
   ) {
-    if (persona === "writer") {
+    if (persona === "writer" && phase !== "EPISODE_GENERATION") {
       // Writer can update plan fields based on phase
-      const planUpdates: Record<string, unknown> = {};
+      const fieldMap: Record<string, string> = {
+        STORY_KERNEL: "storyKernel",
+        WORLD_BUILDING: "worldBuilding",
+        CHARACTERS: "characters",
+        EPISODE_OUTLINES: "episodeOutlines",
+        PRODUCTION_NOTES: "productionNotes",
+      };
 
-      switch (phase) {
-        case "STORY_KERNEL":
-          if (data.storyKernel) planUpdates.storyKernel = data.storyKernel;
-          break;
-        case "WORLD_BUILDING":
-          if (data.worldBuilding) planUpdates.worldBuilding = data.worldBuilding;
-          break;
-        case "CHARACTERS":
-          if (data.characters) planUpdates.characters = data.characters;
-          break;
-        case "EPISODE_OUTLINES":
-          if (data.episodeOutlines) planUpdates.episodeOutlines = data.episodeOutlines;
-          break;
-        case "PRODUCTION_NOTES":
-          if (data.productionNotes) planUpdates.productionNotes = data.productionNotes;
-          break;
-        case "EPISODE_GENERATION":
-          // Writer generates episode content
-          if (data.episodeNumber && data.content) {
-            const epNum = data.episodeNumber as number;
-            await this.prisma.projectEpisode.upsert({
-              where: { projectId_episodeNumber: { projectId, episodeNumber: epNum } },
-              create: {
-                projectId,
-                episodeNumber: epNum,
-                title: (data.title as string) || `第${epNum}集`,
-                content: data.content as string,
-                status: "DRAFT",
-                version: 1,
-              },
-              update: {
-                content: data.content as string,
-                status: "DRAFT",
-                version: { increment: 1 },
-              },
-            });
-          }
-          break;
+      const fieldName = fieldMap[phase];
+      if (!fieldName) return;
+
+      // Check for the expected key, or use entire data object as fallback
+      let value = data[fieldName];
+      if (!value || (typeof value === "object" && Object.keys(value as object).length === 0)) {
+        // Fallback: exclude content-like keys and use the rest
+        const clean = { ...data };
+        delete clean.content;
+        if (Object.keys(clean).length > 0) {
+          value = clean;
+        }
       }
 
-      if (Object.keys(planUpdates).length > 0) {
+      if (value && (typeof value !== "object" || Object.keys(value as object).length > 0)) {
         await this.prisma.projectPlan.update({
           where: { projectId },
-          data: planUpdates as Prisma.ProjectPlanUpdateInput,
+          data: { [fieldName]: value } as Prisma.ProjectPlanUpdateInput,
+        });
+
+        const phaseLabels: Record<string, string> = {
+          STORY_KERNEL: "故事内核", WORLD_BUILDING: "世界观构建", CHARACTERS: "人物塑造",
+          EPISODE_OUTLINES: "分集大纲", PRODUCTION_NOTES: "制作要点",
+        };
+        await this.prisma.conversationMessage.create({
+          data: {
+            projectId,
+            role: "SYSTEM",
+            content: `规划书已更新：【${phaseLabels[phase] ?? phase}】已写入。可在右侧面板查看。`,
+            phase,
+          },
         });
       }
+
+      return;
+    }
+
+    if (persona === "writer" && phase === "EPISODE_GENERATION") {
+      // Extract episode data from either data.episode or data directly
+      const ep = (data.episode as Record<string, unknown>) ?? data;
+      const epNum = ep.episodeNumber as number | undefined;
+      const epContent = ep.content as string | undefined;
+      if (epNum && epContent) {
+        await this.prisma.projectEpisode.upsert({
+          where: { projectId_episodeNumber: { projectId, episodeNumber: epNum } },
+          create: {
+            projectId,
+            episodeNumber: epNum,
+            title: (ep.title as string) || `第${epNum}集`,
+            content: epContent,
+            status: "DRAFT",
+            version: 1,
+          },
+          update: {
+            content: epContent,
+            status: "DRAFT",
+            version: { increment: 1 },
+          },
+        });
+      }
+      return;
     }
 
     if (persona === "reviewer" && phase === "EPISODE_GENERATION") {

@@ -96,49 +96,66 @@ AI创作 Studio（`/studio`）以 AI 对话为核心的三栏布局：
 
 ## 当前 API 能力
 
-已接通：
+**Studio（项目制创作）：**
+- `POST /studio/projects` — 创建项目
+- `GET /studio/projects` — 项目列表（按 ownerId/status 筛选）
+- `GET /studio/projects/:id` — 项目详情（plan + episodes + messageCount）
+- `PATCH /studio/projects/:id` — 更新项目元数据
+- `DELETE /studio/projects/:id` — 归档项目
+- `POST /studio/projects/:id/chat` — 发送消息，触发 AI 响应
+- `GET /studio/projects/:id/messages` — 对话历史（分页）
+- `POST /studio/projects/:id/advance` — 推进规划步骤
+- `POST /studio/projects/:id/lock-plan` — 锁定规划书，进入阶段二
+- `PATCH /studio/projects/:id/plan` — 直接更新规划字段
+- `GET /studio/projects/:id/episodes` — 分集列表
+- `GET /studio/projects/:id/episodes/:epNum` — 单集详情
+- `POST /studio/projects/:id/episodes/:epNum/force-lock` — 强制锁定
 
-- `GET /scripts`
-- `GET /scripts/:id/preview`
-- `POST /scripts`
-- `POST /scripts/:id/lock`
-- `GET /credits/:userId`
-- `POST /credits/:userId/adjust`
-- `POST /ai/outline`
-- `POST /ai/generate-script`
-- `POST /ai/score`
+**剧本/积分/AI 原有端点：**
+- `GET /scripts` / `POST /scripts` / `GET /scripts/:id/preview` / `POST /scripts/:id/lock`
+- `GET /credits/:userId` / `POST /credits/:userId/adjust`
+- `POST /ai/outline` / `POST /ai/generate-script` / `POST /ai/score` / `POST /ai/review`
 
-根路由：
+## 项目记忆架构
 
-- `GET /`
-- 返回当前 API 状态和运行模式
+每个 Project 的对话支持跨数周/月的长期协作，使用四层记忆注入：
+
+- **Layer 0**: System Prompt（固定角色 + 阶段指引）
+- **Layer 1**: 项目宪法 — 锁定后的规划书摘要（~3000 tokens）
+- **Layer 2**: 当前阶段状态 + 待决策事项（~1000 tokens）
+- **Layer 3**: 最近 30 条对话原文（~4000 tokens）
+- **Layer 4**: 历史阶段 AI 自动摘要（~2000 tokens）
+
+总上下文控制在 ~12,000 tokens，远低于 Deepseek V4 Pro 的 1M 上下文窗口。
 
 ## 代码关注点
 
-前端主页面：
+Studio 核心（项目制创作）：
+- [apps/api/src/modules/studio/studio.service.ts] — 核心业务逻辑
+- [apps/api/src/modules/studio/memory.service.ts] — 分层记忆管理
+- [apps/api/src/modules/studio/personas.ts] — 编剧小Q / 审核官 System Prompt
+- [apps/api/src/modules/studio/studio.controller.ts] — API 控制器
+- [apps/web/src/app/studio/page.tsx] — Studio 前端页面
 
-- [apps/web/src/app/page.tsx](</Users/Shared/Previously Relocated Items/Security/lihao app/app/9527/apps/web/src/app/page.tsx:1>)
+前端主页面：
+- [apps/web/src/app/page.tsx]  → 重定向到 /dashboard
+- [apps/web/src/app/dashboard/page.tsx] — 仪表盘（工作台）
 
 前端样式：
-
-- [apps/web/src/app/styles.css](</Users/Shared/Previously Relocated Items/Security/lihao app/app/9527/apps/web/src/app/styles.css:1>)
+- [apps/web/src/app/styles.css]
 
 AI 服务：
-
-- [apps/api/src/modules/ai/ai.service.ts](</Users/Shared/Previously Relocated Items/Security/lihao app/app/9527/apps/api/src/modules/ai/ai.service.ts:1>)
+- [apps/api/src/modules/ai/ai.service.ts]
 
 剧本服务：
-
-- [apps/api/src/modules/scripts/scripts.service.ts](</Users/Shared/Previously Relocated Items/Security/lihao app/app/9527/apps/api/src/modules/scripts/scripts.service.ts:1>)
+- [apps/api/src/modules/scripts/scripts.service.ts]
 
 ## 后续优先级
 
-优先做：
-
-1. 把 AI 创作从单次输出升级为分步骤保存。
-2. 增加剧本详情页，不再只在首页试读。
-3. 接通 `txt / md` 下载。
-4. 补登录和角色权限。
+1. 增加剧本详情页，不再只在首页试读。
+2. 接通 `txt / md` 下载。
+3. 补登录和角色权限。
+4. 完善 @审核官 和 @编剧小Q 的 PK 对话流（双方自动交替发言）。
 5. 给 AI 提示词做后台配置页。
 
 ## 协作约定

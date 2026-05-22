@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../common/prisma.service";
-import { buildWriterPrompt, buildReviewerPrompt } from "./personas";
+import { PromptService } from "./prompt.service";
 
 type ProjectPhase = "STORY_KERNEL" | "WORLD_BUILDING" | "CHARACTERS" | "EPISODE_OUTLINES" | "PRODUCTION_NOTES" | "EPISODE_GENERATION";
 
@@ -18,7 +18,10 @@ const PHASE_LABELS: Record<ProjectPhase, string> = {
 
 @Injectable()
 export class MemoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly promptService: PromptService,
+  ) {}
 
   async assembleContext(
     projectId: string,
@@ -66,10 +69,10 @@ export class MemoryService {
     return summary;
   }
 
-  private getLayer0(personaRole: "writer" | "reviewer", phase: ProjectPhase): string {
+  private async getLayer0(personaRole: "writer" | "reviewer", phase: ProjectPhase): Promise<string> {
     return personaRole === "writer"
-      ? buildWriterPrompt(phase)
-      : buildReviewerPrompt(phase);
+      ? this.promptService.getWriterPrompt(phase)
+      : this.promptService.getReviewerPrompt(phase);
   }
 
   private async getLayer1(projectId: string): Promise<string> {

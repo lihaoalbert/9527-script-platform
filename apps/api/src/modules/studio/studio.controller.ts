@@ -1,9 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { PromptService } from "./prompt.service";
 import { StudioService } from "./studio.service";
 
 @Controller("studio")
 export class StudioController {
-  constructor(private readonly studioService: StudioService) {}
+  constructor(
+    private readonly studioService: StudioService,
+    private readonly promptService: PromptService,
+  ) {}
 
   @Post("projects")
   createProject(@Body() body: { name: string; genre?: string; ownerId: string }) {
@@ -75,5 +79,23 @@ export class StudioController {
   @Post("projects/:id/episodes/:epNum/force-lock")
   forceLock(@Param("id") id: string, @Param("epNum") epNum: string) {
     return this.studioService.forceLock(id, Number(epNum));
+  }
+
+  @Get("prompts")
+  listPrompts() {
+    return this.promptService.listPrompts();
+  }
+
+  @Patch("prompts/:key")
+  updatePrompt(
+    @Param("key") key: string,
+    @Body() body: { template: string; enabled: boolean }
+  ) {
+    return this.promptService.updatePrompt(key, body.template, body.enabled);
+  }
+
+  @Delete("prompts/:key")
+  resetPrompt(@Param("key") key: string) {
+    return this.promptService.resetPrompt(key);
   }
 }

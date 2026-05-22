@@ -2024,3 +2024,105 @@ li {
   padding: 16px 20px;
   border-top: 1px solid var(--line);
 }
+
+/* ─── Prompt Manager (Right Panel) ─── */
+
+.promptManager {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.promptList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.promptItem {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.promptItem.editing {
+  border-color: var(--accent);
+}
+
+.promptItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: #faf9f7;
+  transition: background 0.15s;
+}
+
+.promptItemHeader:hover { background: #f4f3ef; }
+
+.promptItemTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.promptKey {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.promptTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.promptItemMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.customBadge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  background: #d1fae5;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.promptItemBody {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.promptEditor {
+  width: 100%;
+  min-height: 160px;
+  font-size: 12px;
+  font-family: monospace;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.promptActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.promptActions button {
+  font-size: 12px;
+  min-height: 34px;
+}

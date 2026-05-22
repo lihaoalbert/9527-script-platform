@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
-  User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Trash2, FolderOpen,
+  User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
 } from "lucide-react";
 
 // ─── Types ───
@@ -72,13 +72,48 @@ export default function StudioPage() {
   const [activePersona, setActivePersona] = useState<"writer" | "reviewer">("writer");
 
   // Right panel
-  const [rightView, setRightView] = useState<"plan" | "episode" | "scores">("plan");
+  const [rightView, setRightView] = useState<"plan" | "episode" | "scores" | "prompts">("plan");
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
+
+  // Prompts
+  const [prompts, setPrompts] = useState<Array<{ key: string; title: string; template: string; enabled: boolean; isCustomized: boolean }>>([]);
+  const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+  const [editTemplate, setEditTemplate] = useState("");
 
   // Modal
   const [showNewProject, setShowNewProject] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGenre, setNewGenre] = useState("");
+
+  async function loadPrompts() {
+    try {
+      const res = await fetch(`${API}/studio/prompts`);
+      if (res.ok) setPrompts(await res.json());
+    } catch (e) { console.error(e); }
+  }
+
+  async function savePrompt(key: string) {
+    try {
+      await fetch(`${API}/studio/prompts/${key}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template: editTemplate, enabled: true }),
+      });
+      setEditingPrompt(null);
+      await loadPrompts();
+    } catch (e) { console.error(e); }
+  }
+
+  async function resetPrompt(key: string) {
+    try {
+      const res = await fetch(`${API}/studio/prompts/${key}`, { method: "DELETE" });
+      if (res.ok) {
+        const def = await res.json();
+        setEditTemplate(def.template);
+        await loadPrompts();
+      }
+    } catch (e) { console.error(e); }
+  }
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -276,6 +311,13 @@ export default function StudioPage() {
             </div>
           </div>
         )}
+
+        <div className="leftFooter">
+          <button className="configBtn" onClick={() => { loadPrompts(); setRightView("prompts"); }}>
+            <Settings size={16} />
+            <span>提示词管理</span>
+          </button>
+        </div>
       </aside>
 
       {/* Middle Panel — Chat */}
@@ -374,9 +416,55 @@ export default function StudioPage() {
         </div>
       </main>
 
-      {/* Right Panel — Plan / Episode View */}
+      {/* Right Panel — Plan / Episode / Prompts View */}
       <aside className="studioRight">
-        {!projectDetail ? (
+        {rightView === "prompts" ? (
+          <div className="promptManager">
+            <div className="rightHeader">
+              <h2>提示词管理</h2>
+              <button className="iconBtn" onClick={() => setRightView(projectDetail ? "plan" : "plan")}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="promptList">
+              {prompts.map((p) => (
+                <div key={p.key} className={`promptItem ${editingPrompt === p.key ? "editing" : ""}`}>
+                  <div className="promptItemHeader" onClick={() => {
+                    setEditingPrompt(editingPrompt === p.key ? null : p.key);
+                    setEditTemplate(p.template);
+                  }}>
+                    <div className="promptItemTitle">
+                      <span className="promptKey">{p.key}</span>
+                      <span className="promptTitle">{p.title}</span>
+                    </div>
+                    <div className="promptItemMeta">
+                      {p.isCustomized && <span className="customBadge">已自定义</span>}
+                      <ChevronRight size={14} style={{ transform: editingPrompt === p.key ? "rotate(90deg)" : "" }} />
+                    </div>
+                  </div>
+                  {editingPrompt === p.key && (
+                    <div className="promptItemBody">
+                      <textarea
+                        value={editTemplate}
+                        onChange={(e) => setEditTemplate(e.target.value)}
+                        rows={12}
+                        className="promptEditor"
+                      />
+                      <div className="promptActions">
+                        <button className="secondaryBtn" onClick={() => { void resetPrompt(p.key); }}>
+                          恢复默认
+                        </button>
+                        <button onClick={() => { void savePrompt(p.key); }}>
+                          <Save size={14} /> 保存
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : !projectDetail ? (
           <div className="emptyPreview">
             <FileText size={48} />
             <p>选择左侧项目查看详情</p>

@@ -1,340 +1,364 @@
 "use client";
 
-import { useState } from "react";
-import { Bot, Sparkles, CheckCircle2, LoaderCircle, ArrowRight } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  Folder,
+  FileText,
+  Settings,
+  Send,
+  LoaderCircle,
+  Bot,
+  User,
+  Sparkles,
+  ChevronRight,
+  Plus,
+  MoreHorizontal,
+  Shield,
+  X,
+} from "lucide-react";
 
-type OutlineResponse = {
-  provider: string;
-  titleOptions: string[];
-  outline: string[];
-  nextSteps: string[];
-};
-
-type GeneratedScript = {
-  provider: string;
-  title: string;
-  summary: string;
-  targetWords: number;
-  episodes: number;
-  tone: string;
-  protagonist: string;
-  characters: string[];
-  episodeBeats: Array<{ episode: number; title: string; hook: string }>;
+// Types
+type Message = {
+  id: string;
+  role: "user" | "writer" | "reviewer" | "system";
   content: string;
+  timestamp: Date;
 };
 
-type ScoreResponse = {
-  total: number;
-  conflict: number;
-  logic: number;
-  pacing: number;
-  commercialPotential: number;
-  aiRate: number;
-  suggestions: string[];
+type ProjectFile = {
+  id: string;
+  name: string;
+  type: "outline" | "script" | "score" | "note";
+  content: string;
+  updatedAt: Date;
 };
 
-const creationSteps = [
-  { key: "brief", label: "设定输入" },
-  { key: "outline", label: "大纲建议" },
-  { key: "draft", label: "草案生成" },
-  { key: "score", label: "评分润色" },
-];
+type Project = {
+  id: string;
+  name: string;
+  files: ProjectFile[];
+  activeFileId: string | null;
+};
 
-const promptPresets = [
-  { title: "甜宠逆袭", genre: "甜宠逆袭", protagonist: "苏晚", tone: "高反转、情绪拉满", premise: "女主替姐姐进入豪门婚约，在被全家轻视的局面中一步步翻盘" },
-  { title: "悬疑反转", genre: "悬疑反转", protagonist: "林祈", tone: "都市悬疑、强信息差", premise: "匿名手机里的第七段视频，逐步揭开女主被人为抹去的人生" },
-  { title: "重生复仇", genre: "重生复仇", protagonist: "沈知遥", tone: "狠节奏、冷反击", premise: "女主重生回商业联姻前夜，带着前世记忆逐一反杀背叛者" },
-];
+// Writer AI persona
+const WRITER_PERSONA = {
+  role: "writer",
+  name: "编剧小Q",
+  avatar: <Bot size={20} />,
+  color: "#0f766e",
+  systemPrompt: `你是一个专业的短剧编剧，擅长创作高反转、情绪拉满的剧情。你的风格是：
+- 开场即冲突，三分钟内进入主冲突
+- 每集结尾留下强悬念钩子
+- 人物性格鲜明，对白简洁有力
+- 善于制造信息差和身份反转
 
-const initialForm = {
-  genre: "甜宠逆袭",
-  premise: "女主替姐姐进入豪门婚约，在被全家轻视的局面中一步步翻盘",
-  protagonist: "苏晚",
-  tone: "高反转、情绪拉满",
-  targetWords: 18000,
-  episodes: 12,
+请用JSON格式回复：
+{
+  "content": "生成的剧本内容",
+  "title": "可选的标题"
+}`,
+};
+
+// Reviewer AI persona
+const REVIEWER_PERSONA = {
+  role: "reviewer",
+  name: "审核官",
+  avatar: <Shield size={20} />,
+  color: "#b45309",
+  systemPrompt: `你是一个资深剧本审核官，专门挑剔剧本问题。你的风格是：
+- 严格指出剧情漏洞和逻辑问题
+- 质疑人物行为动机
+- 指出节奏拖沓的地方
+- 评估商业潜力和观众留存率
+- 提出具体的修改建议
+
+请直接用犀利的中文回复，不要客气。`,
 };
 
 export default function StudioPage() {
-  const [form, setForm] = useState(initialForm);
-  const [outline, setOutline] = useState<OutlineResponse | null>(null);
-  const [generated, setGenerated] = useState<GeneratedScript | null>(null);
-  const [score, setScore] = useState<ScoreResponse | null>(null);
-  const [loading, setLoading] = useState({ outline: false, generate: false, score: false, save: false });
-  const [message, setMessage] = useState({ type: "", text: "" });
+  // Project state
+  const [project, setProject] = useState<Project>({
+    id: "demo-project",
+    name: "我的剧本项目",
+    files: [],
+    activeFileId: null,
+  });
 
-  const activeStep = score ? "score" : generated ? "draft" : outline ? "outline" : "brief";
-  const currentStepIndex = creationSteps.findIndex((s) => s.key === activeStep);
+  // Chat state
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "system",
+      content: "欢迎来到AI剧本创作工作室！编剧小Q和审核官已就位。你可以：\n1. 描述你的剧本设定\n2. 让编剧生成大纲/正文\n3. 审核官会挑剔问题\n4. 你可以随时修改对话中的内容\n\n开始创作吧！",
+      timestamp: new Date(),
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [activeRole, setActiveRole] = useState<"writer" | "reviewer">("writer");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  async function handleOutline() {
-    setLoading((l) => ({ ...l, outline: true }));
-    setMessage({ type: "", text: "" });
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Send message to AI
+  async function sendMessage(content: string) {
+    if (!content.trim()) return;
+
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+
     try {
-      const res = await fetch("http://127.0.0.1:4000/ai/outline", {
+      // Call API based on active role
+      const endpoint = activeRole === "writer" ? "/ai/generate-script" : "/ai/review";
+      const res = await fetch(`http://127.0.0.1:4000${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ genre: form.genre, premise: form.premise }),
+        body: JSON.stringify({
+          genre: "甜宠逆袭",
+          premise: content,
+          protagonist: "女主",
+          targetWords: 5000,
+          episodes: 12,
+        }),
       });
-      setOutline(await res.json());
+
+      if (res.ok) {
+        const data = await res.json();
+        const aiMessage: Message = {
+          id: `${activeRole}-${Date.now()}`,
+          role: activeRole,
+          content: typeof data === "string" ? data : data.content || JSON.stringify(data, null, 2),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+
+        // Save to project files if it's a script
+        if (activeRole === "writer" && data.title) {
+          saveToProject(data.title, "script", data.content || String(data));
+        }
+      } else {
+        throw new Error("API error");
+      }
     } catch (e) {
-      setMessage({ type: "error", text: "AI大纲生成失败" });
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "system",
+        content: `生成失败，请重试。错误: ${e}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setLoading((l) => ({ ...l, outline: false }));
+      setLoading(false);
     }
   }
 
-  async function handleGenerate() {
-    setLoading((l) => ({ ...l, generate: true }));
-    setMessage({ type: "", text: "" });
-    try {
-      const res = await fetch("http://127.0.0.1:4000/ai/generate-script", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      setGenerated(await res.json());
-      setScore(null);
-    } catch (e) {
-      setMessage({ type: "error", text: "AI草案生成失败" });
-    } finally {
-      setLoading((l) => ({ ...l, generate: false }));
+  // Save content to project files
+  function saveToProject(name: string, type: ProjectFile["type"], content: string) {
+    const newFile: ProjectFile = {
+      id: `file-${Date.now()}`,
+      name,
+      type,
+      content,
+      updatedAt: new Date(),
+    };
+    setProject((prev) => ({
+      ...prev,
+      files: [...prev.files, newFile],
+      activeFileId: newFile.id,
+    }));
+  }
+
+  // Select active file
+  function selectFile(fileId: string) {
+    const file = project.files.find((f) => f.id === fileId);
+    if (file) {
+      setProject((prev) => ({ ...prev, activeFileId: fileId }));
     }
   }
 
-  async function handleScore(content?: string) {
-    if (!content) return;
-    setLoading((l) => ({ ...l, score: true }));
-    setMessage({ type: "", text: "" });
-    try {
-      const res = await fetch("http://127.0.0.1:4000/ai/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      setScore(await res.json());
-    } catch (e) {
-      setMessage({ type: "error", text: "AI评分失败" });
-    } finally {
-      setLoading((l) => ({ ...l, score: false }));
+  // Get file icon
+  function getFileIcon(type: ProjectFile["type"]) {
+    switch (type) {
+      case "outline":
+        return <FileText size={16} />;
+      case "script":
+        return <FileText size={16} />;
+      case "score":
+        return <Shield size={16} />;
+      default:
+        return <FileText size={16} />;
     }
   }
 
-  async function handleSaveDraft() {
-    if (!generated) return;
-    setLoading((l) => ({ ...l, save: true }));
-    try {
-      await fetch("http://127.0.0.1:4000/scripts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: generated.title, genre: form.genre, content: generated.content, authorId: "demo-user-1" }),
-      });
-      setMessage({ type: "success", text: "剧本已保存到剧本库" });
-    } catch (e) {
-      setMessage({ type: "error", text: "保存失败" });
-    } finally {
-      setLoading((l) => ({ ...l, save: false }));
-    }
-  }
-
-  function applyPreset(preset: typeof promptPresets[0]) {
-    setForm({ genre: preset.genre, premise: preset.premise, protagonist: preset.protagonist, tone: preset.tone, targetWords: 18000, episodes: 12 });
-  }
+  const activeFile = project.files.find((f) => f.id === project.activeFileId);
 
   return (
-    <div>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">AI创作工作室</span>
-          <h1>剧本创作全流程</h1>
+    <div className="studioV2">
+      {/* Left Panel - Navigation */}
+      <aside className="studioLeft">
+        <div className="leftHeader">
+          <h2>项目</h2>
+          <button className="iconBtn"><Plus size={16} /></button>
         </div>
-      </header>
 
-      {message.text && (
-        <div className={`notice ${message.type}`}>{message.text}</div>
-      )}
+        <div className="projectName">
+          <Folder size={16} />
+          <span>{project.name}</span>
+        </div>
 
-      <div className="studioGrid">
-        <aside className="studioRail">
-          <div className="panel railPanel">
-            <h3>创作阶段</h3>
-            <div className="stageList">
-              {creationSteps.map((step, index) => (
-                <div key={step.key} className={`stageItem ${index === currentStepIndex ? "current" : index < currentStepIndex ? "done" : ""}`}>
-                  <div className="stageIndex">
-                    {index < currentStepIndex ? <CheckCircle2 size={16} /> : <span>{index + 1}</span>}
-                  </div>
-                  <div>
-                    <strong>{step.label}</strong>
-                  </div>
-                </div>
-              ))}
+        <div className="fileList">
+          <div className="fileListHeader">文件</div>
+          {project.files.length === 0 ? (
+            <div className="emptyFiles">
+              <FileText size={16} />
+              <span>暂无文件</span>
+              <span className="fileHint">AI生成后自动保存</span>
             </div>
-          </div>
-
-          <div className="panel railPanel">
-            <h3>快速预设</h3>
-            <div className="presetList">
-              {promptPresets.map((preset) => (
-                <button key={preset.title} className="presetCard" onClick={() => applyPreset(preset)}>
-                  <strong>{preset.title}</strong>
-                  <span>{preset.premise.slice(0, 40)}...</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        <div className="studioMain">
-          <div className="panel studioPanel">
-            <div className="panelTitle">
-              <div>
-                <span className="eyebrow">Step 1</span>
-                <h3>项目 Brief</h3>
-              </div>
-              <span className="miniBadge">为漫剧 / 短剧优化</span>
-            </div>
-
-            <div className="formGrid">
-              <label>题材<input value={form.genre} onChange={(e) => setForm((f) => ({ ...f, genre: e.target.value }))} /></label>
-              <label>主角名<input value={form.protagonist} onChange={(e) => setForm((f) => ({ ...f, protagonist: e.target.value }))} /></label>
-              <label className="fullSpan">核心设定<textarea rows={4} value={form.premise} onChange={(e) => setForm((f) => ({ ...f, premise: e.target.value }))} /></label>
-              <label>风格<input value={form.tone} onChange={(e) => setForm((f) => ({ ...f, tone: e.target.value }))} /></label>
-              <label>目标字数<input type="number" min={10000} max={30000} step={1000} value={form.targetWords} onChange={(e) => setForm((f) => ({ ...f, targetWords: Number(e.target.value) }))} /></label>
-              <label>集数<input type="number" min={6} max={30} value={form.episodes} onChange={(e) => setForm((f) => ({ ...f, episodes: Number(e.target.value) }))} /></label>
-            </div>
-
-            <div className="actionRow">
-              <button className="secondaryBtn" onClick={() => void handleOutline()} disabled={loading.outline}>
-                {loading.outline ? <LoaderCircle size={16} className="spin" /> : <Bot size={16} />}
-                生成大纲
+          ) : (
+            project.files.map((file) => (
+              <button
+                key={file.id}
+                className={`fileItem ${project.activeFileId === file.id ? "active" : ""}`}
+                onClick={() => selectFile(file.id)}
+              >
+                {getFileIcon(file.type)}
+                <span className="fileName">{file.name}</span>
+                <ChevronRight size={14} className="fileArrow" />
               </button>
-              <button onClick={() => void handleGenerate()} disabled={loading.generate}>
-                {loading.generate ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
-                一键生成
-              </button>
-            </div>
-          </div>
+            ))
+          )}
+        </div>
 
-          <div className="panel studioPanel">
-            <div className="panelTitle">
-              <div>
-                <span className="eyebrow">Step 2</span>
-                <h3>结构建议</h3>
-              </div>
-              <span className="miniBadge">{outline?.provider ?? "等待生成"}</span>
-            </div>
-            {outline ? (
-              <>
-                <div className="chipRow">
-                  {outline.titleOptions.map((t) => <span key={t} className="chip">{t}</span>)}
-                </div>
-                <ul className="cleanList">
-                  {outline.outline.map((o, i) => <li key={i}>{o}</li>)}
-                </ul>
-                <div className="nextActionStrip">
-                  {outline.nextSteps.map((s, i) => <span key={i}>{s}</span>)}
-                </div>
-              </>
-            ) : (
-              <div className="emptyState">
-                <Bot size={18} />
-                生成大纲后显示标题方向和情节骨架
-              </div>
-            )}
+        <div className="leftFooter">
+          <button className="configBtn">
+            <Settings size={16} />
+            <span>配置</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Middle Panel - Chat */}
+      <main className="studioMiddle">
+        <div className="chatHeader">
+          <div className="roleSelector">
+            <button
+              className={`roleBtn ${activeRole === "writer" ? "active" : ""}`}
+              onClick={() => setActiveRole("writer")}
+              style={{ "--role-color": WRITER_PERSONA.color } as React.CSSProperties}
+            >
+              <Bot size={16} />
+              {WRITER_PERSONA.name}
+            </button>
+            <button
+              className={`roleBtn ${activeRole === "reviewer" ? "active" : ""}`}
+              onClick={() => setActiveRole("reviewer")}
+              style={{ "--role-color": REVIEWER_PERSONA.color } as React.CSSProperties}
+            >
+              <Shield size={16} />
+              {REVIEWER_PERSONA.name}
+            </button>
           </div>
         </div>
 
-        <aside className="studioOutput">
-          <div className="panel outputPanel">
-            <div className="panelTitle">
-              <div>
-                <span className="eyebrow">Step 3</span>
-                <h3>草案编辑器</h3>
+        <div className="chatMessages">
+          {messages.map((msg) => {
+            const persona = msg.role === "writer" ? WRITER_PERSONA : msg.role === "reviewer" ? REVIEWER_PERSONA : null;
+            return (
+              <div key={msg.id} className={`message ${msg.role}`}>
+                {persona && (
+                  <div className="messageAvatar" style={{ background: persona.color }}>
+                    {persona.avatar}
+                  </div>
+                )}
+                {msg.role === "user" && (
+                  <div className="messageAvatar userAvatar">
+                    <User size={16} />
+                  </div>
+                )}
+                {msg.role === "system" && (
+                  <div className="messageAvatar systemAvatar">
+                    <Sparkles size={16} />
+                  </div>
+                )}
+                <div className="messageContent">
+                  {persona && <div className="messageName">{persona.name}</div>}
+                  <div className="messageText">{msg.content}</div>
+                </div>
               </div>
-              <span className="miniBadge">{generated?.provider ?? "未生成"}</span>
+            );
+          })}
+          {loading && (
+            <div className="message loading">
+              <div className="messageAvatar" style={{ background: activeRole === "writer" ? WRITER_PERSONA.color : REVIEWER_PERSONA.color }}>
+                {activeRole === "writer" ? <Bot size={16} /> : <Shield size={16} />}
+              </div>
+              <div className="messageContent">
+                <div className="messageName">{activeRole === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name}</div>
+                <div className="messageText loading">
+                  <LoaderCircle size={16} className="spin" />
+                  思考中...
+                </div>
+              </div>
             </div>
-            {generated ? (
-              <>
-                <div className="draftHeader">
-                  <strong>{generated.title}</strong>
-                  <p>{generated.summary}</p>
-                  <div className="statRow">
-                    <span>{generated.episodes} 集</span>
-                    <span>{generated.targetWords} 字</span>
-                  </div>
-                </div>
-                <div className="miniColumns">
-                  <div>
-                    <h4>人物</h4>
-                    <ul className="cleanList">
-                      {generated.characters.map((c, i) => <li key={i}>{c}</li>)}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4>分集钩子</h4>
-                    <ul className="cleanList">
-                      {generated.episodeBeats.slice(0, 4).map((b) => <li key={b.episode}>第{b.episode}集：{b.hook}</li>)}
-                    </ul>
-                  </div>
-                </div>
-                <div className="draftEditor">
-                  <div className="editorHead">
-                    <h4>正文</h4>
-                    <div className="actionRow compact">
-                      <button className="secondaryBtn" onClick={() => void handleScore(generated.content)} disabled={loading.score}>
-                        {loading.score ? <LoaderCircle size={16} className="spin" /> : <Bot size={16} />}
-                        AI评分
-                      </button>
-                      <button onClick={() => void handleSaveDraft()} disabled={loading.save}>
-                        {loading.save ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
-                        保存
-                      </button>
-                    </div>
-                  </div>
-                  <textarea rows={12} value={generated.content} onChange={(e) => setGenerated((g) => g ? { ...g, content: e.target.value } : g)} />
-                </div>
-              </>
-            ) : (
-              <div className="emptyState tall">
-                <Sparkles size={18} />
-                点击「一键生成」获取剧本草案
-              </div>
-            )}
-          </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-          <div className="panel outputPanel">
-            <div className="panelTitle">
-              <div>
-                <span className="eyebrow">Step 4</span>
-                <h3>评分结果</h3>
-              </div>
+        <div className="chatInput">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={`向${activeRole === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name}描述你的想法...`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void sendMessage(input);
+              }
+            }}
+          />
+          <button onClick={() => void sendMessage(input)} disabled={loading || !input.trim()}>
+            <Send size={18} />
+          </button>
+        </div>
+      </main>
+
+      {/* Right Panel - Result */}
+      <aside className="studioRight">
+        <div className="rightHeader">
+          <h2>{activeFile ? activeFile.name : "结果展示"}</h2>
+          {activeFile && (
+            <button className="iconBtn" onClick={() => setProject((p) => ({ ...p, activeFileId: null }))}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
+        {activeFile ? (
+          <div className="filePreview">
+            <div className="fileMeta">
+              <span className="fileType">{activeFile.type}</span>
+              <span className="fileDate">{activeFile.updatedAt.toLocaleTimeString()}</span>
             </div>
-            {score ? (
-              <>
-                <div className="scoreHero">
-                  <strong>{score.total}</strong>
-                  <span>综合评分</span>
-                </div>
-                <div className="scoreGrid">
-                  <span>冲突 {score.conflict}</span>
-                  <span>逻辑 {score.logic}</span>
-                  <span>节奏 {score.pacing}</span>
-                  <span>商业潜力 {score.commercialPotential}</span>
-                  <span>AI率 {score.aiRate}%</span>
-                </div>
-                <ul className="cleanList">
-                  {score.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </>
-            ) : (
-              <div className="emptyState">
-                <ArrowRight size={18} />
-                生成草案后进行评分
-              </div>
-            )}
+            <pre className="fileContent">{activeFile.content}</pre>
           </div>
-        </aside>
-      </div>
+        ) : (
+          <div className="emptyPreview">
+            <FileText size={48} />
+            <p>选择左侧文件预览</p>
+            <p className="hint">或者让AI生成新内容</p>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }

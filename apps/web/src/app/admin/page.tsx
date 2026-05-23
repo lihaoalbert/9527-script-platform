@@ -1,6 +1,6 @@
 "use client";
 
-import { authFetch, useAuth } from "../auth-context";
+import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import { Users, BookOpen, Bot } from "lucide-react";
 
@@ -21,7 +21,6 @@ const ROLES = ["USER", "CREATOR", "BUYER", "REVIEWER", "OPERATOR", "ADMIN", "SUP
 type TabKey = "users" | "scripts" | "ai";
 
 export default function AdminPage() {
-  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("users");
   const [scripts, setScripts] = useState<Script[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -31,7 +30,19 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("user");
+      if (u) {
+        const parsed = JSON.parse(u);
+        setIsSuperAdmin(parsed.role === "SUPER_ADMIN");
+        setCurrentUserId(parsed.id);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const tabs: Array<{ key: TabKey; label: string; icon: typeof Users }> = [
     { key: "users", label: "用户管理", icon: Users },
@@ -129,7 +140,7 @@ export default function AdminPage() {
                   <span>{u.name}</span>
                   <span className="tag" style={{ fontSize: 11 }}>{roleLabels[u.role] ?? u.role}</span>
                   <span>
-                    {isSuperAdmin && u.id !== currentUser?.id ? (
+                    {isSuperAdmin && u.id !== currentUserId ? (
                       <select
                         value={u.role}
                         onChange={(e) => { void updateRole(u.id, e.target.value); }}

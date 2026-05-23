@@ -95,8 +95,8 @@ export class AutoModeService {
       if (state.abort) break;
 
       const phase = PLANNING_PHASES[i];
-      const result = await this.iterationLoop(projectId, state, phase, (attempt) =>
-        this.runWriterTurn(projectId, phase, attempt),
+      const result = await this.iterationLoop(projectId, state, phase, (attempt, feedback) =>
+        this.runWriterTurn(projectId, phase, attempt, feedback),
         () => this.runReviewerTurn(projectId, phase),
         PHASE_LABELS[phase],
       );
@@ -145,7 +145,7 @@ export class AutoModeService {
         `自动模式：开始生成第${epNum}集（目标${project.episodeTargetWords}字）。`);
 
       const result = await this.iterationLoop(projectId, state, "EPISODE_GENERATION",
-        (attempt) => this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords, attempt),
+        (attempt, feedback) => this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords, attempt, feedback),
         () => this.runReviewerEpisodeTurn(projectId, epNum),
         `第${epNum}集`,
       );
@@ -174,17 +174,22 @@ export class AutoModeService {
     projectId: string,
     state: { abort: boolean },
     phase: ProjectPhase,
-    writerFn: (attempt: number) => Promise<void>,
-    reviewerFn: () => Promise<number>,
+    writerFn: (attempt: number, prevFeedback: string) => Promise<void>,
+    reviewerFn: () => Promise<{ score: number; suggestions: string[] }>,
     label: string,
   ): Promise<"passed" | "max_attempts"> {
     let score = 0;
+    let lastSuggestions: string[] = [];
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       if (state.abort) return "max_attempts";
 
+      const feedback = lastSuggestions.length > 0
+        ? lastSuggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")
+        : "";
+
       // Writer turn
-      const writerOk = await this.safeCall(`writer-${label}`, async () => { await writerFn(attempt); return true; }, projectId, state);
+      const writerOk = await this.safeCall(`writer-${label}`, async () => { await writerFn(attempt, feedback); return true; }, projectId, state);
       if (writerOk === null || state.abort) return "max_attempts";
       await this.delay(2000 + Math.random() * 1000);
       if (state.abort) return "max_attempts";
@@ -192,7 +197,8 @@ export class AutoModeService {
       // Reviewer turn
       const reviewerResult = await this.safeCall(`reviewer-${label}`, () => reviewerFn(), projectId, state);
       if (reviewerResult === null || state.abort) return "max_attempts";
-      score = reviewerResult;
+      score = reviewerResult.score;
+      lastSuggestions = reviewerResult.suggestions;
       await this.delay(2000 + Math.random() * 1000);
 
       if (score >= 90) {
@@ -201,7 +207,7 @@ export class AutoModeService {
 
       if (attempt < MAX_ATTEMPTS) {
         await this.saveSystemMessage(projectId, phase,
-          `自动模式：${label}当前${score}分（未达90），第${attempt + 1}轮修订...`);
+          `自动模式：${label}当前${score}分（未达90），审核官提出${lastSuggestions.length}条意见，第${attempt + 1}轮修订...`);
       }
     }
 
@@ -240,12 +246,19 @@ export class AutoModeService {
 
   // ─── Writer Turns ───
 
-  private async runWriterTurn(projectId: string, phase: ProjectPhase, attempt: number) {
+  private async runWriterTurn(projectId: string, phase: ProjectPhase, attempt: number, feedback: string) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", phase);
 
     const instruction = attempt === 1
       ? `【自动模式-第1轮】请为【${PHASE_LABELS[phase]}】直接生成方案，输出JSON：{"content":"简介","data":{"${FIELD_MAP[phase] ?? "data"}":{...}}}`
-      : `【自动模式-修订第${attempt}轮】审核官对你上一轮的方案提出了修改意见（见上一条审核官的消息），请认真参考审核官的具体建议，逐条回应并修改方案，然后重新输出。输出JSON格式相同。`;
+      : `【自动模式-修订第${attempt}轮】审核官对你上一轮的方案提出以下具体意见，你必须逐条回应并修改：
+
+${feedback}
+
+要求：
+1. 逐条说明你是如何修改的（在content中）
+2. 确认每条意见都已落实后再输出最终方案
+3. 不要只是口头承认而不修改——审核官会逐条核查`;
 
     messages.push({ role: "user", content: instruction });
 
@@ -274,12 +287,19 @@ export class AutoModeService {
     }
   }
 
-  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number, attempt: number) {
+  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number, attempt: number, feedback: string) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", "EPISODE_GENERATION");
 
     const instruction = attempt === 1
       ? `【自动模式-第1轮】生成第${epNum}集剧本（目标${targetWords}字），严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`
-      : `【自动模式-修订第${attempt}轮】审核官对第${epNum}集提出了修改意见（见上一条审核官的消息），请认真参考审核官的具体建议，逐条回应并修改剧本，然后重新输出。输出JSON格式相同。`;
+      : `【自动模式-修订第${attempt}轮】审核官对第${epNum}集提出以下具体意见，你必须逐条回应并修改：
+
+${feedback}
+
+要求：
+1. 逐条说明你是如何修改的（在content中）
+2. 确认每条意见都已落实后再输出最终剧本
+3. 不要只是口头承认——审核官会逐条核查你是否真的改了`;
 
     messages.push({ role: "user", content: instruction });
 
@@ -314,7 +334,7 @@ export class AutoModeService {
 
   // ─── Reviewer Turns ───
 
-  private async runReviewerTurn(projectId: string, phase: ProjectPhase): Promise<number> {
+  private async runReviewerTurn(projectId: string, phase: ProjectPhase): Promise<{ score: number; suggestions: string[] }> {
     const messages = await this.memoryService.assembleContext(projectId, "reviewer", phase);
     messages.push({
       role: "user",
@@ -332,10 +352,11 @@ export class AutoModeService {
       },
     });
 
-    return this.extractScore(parsed.data);
+    const suggestions: string[] = Array.isArray(parsed.data?.suggestions) ? parsed.data.suggestions : [];
+    return { score: this.extractScore(parsed.data), suggestions };
   }
 
-  private async runReviewerEpisodeTurn(projectId: string, epNum: number): Promise<number> {
+  private async runReviewerEpisodeTurn(projectId: string, epNum: number): Promise<{ score: number; suggestions: string[] }> {
     const messages = await this.memoryService.assembleContext(projectId, "reviewer", "EPISODE_GENERATION");
     messages.push({
       role: "user",
@@ -385,7 +406,8 @@ export class AutoModeService {
       }
     }
 
-    return locked ? 90 : Math.max(total, 0);
+    const suggestions: string[] = Array.isArray(parsed.data?.suggestions) ? parsed.data.suggestions : [];
+    return { score: locked ? 90 : Math.max(total, 0), suggestions };
   }
 
   // ─── Helpers ───

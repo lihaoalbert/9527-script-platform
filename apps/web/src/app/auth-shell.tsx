@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Gauge, Sparkles, BookOpen, WalletCards, ShieldCheck, LogOut } from "lucide-react";
+import { Gauge, Sparkles, BookOpen, WalletCards, ShieldCheck, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { AuthProvider, useAuth } from "./auth-context";
 
 const PUBLIC_PATHS = ["/login"];
@@ -20,6 +20,7 @@ function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, token, logout } = useAuth();
   const isPublic = PUBLIC_PATHS.includes(pathname);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isPublic && !token) {
@@ -43,45 +44,59 @@ function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brandMark">9527</span>
-          <div>
-            <strong>剧本平台</strong>
-            <small>短剧创作与版权运营</small>
+    <div className={`shell ${collapsed ? "shellCollapsed" : ""}`}>
+      <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+        {!collapsed && (
+          <div className="brand">
+            <span className="brandMark">9527</span>
+            <div>
+              <strong>剧本平台</strong>
+              <small>短剧创作与版权运营</small>
+            </div>
           </div>
-        </div>
+        )}
+        {collapsed && (
+          <div className="brand" style={{ justifyContent: "center", padding: "12px 0" }}>
+            <span className="brandMark">95</span>
+          </div>
+        )}
         <nav>
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
-              <Link key={item.href} href={item.href} className={isActive ? "active" : ""}>
+              <Link key={item.href} href={item.href} className={isActive ? "active" : ""} title={item.label}>
                 <item.icon size={18} />
-                {item.label}
+                {!collapsed && item.label}
               </Link>
             );
           })}
         </nav>
-        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <div style={{ padding: "8px 12px", fontSize: 13, color: "#d2d8d2" }}>
-            {user.name}
+        {!collapsed && (
+          <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{ padding: "8px 12px", fontSize: 13, color: "#d2d8d2" }}>
+              {user.name}
+            </div>
+            <button onClick={logout}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 12px", background: "transparent",
+                border: 0, borderRadius: 8, cursor: "pointer",
+                color: "#d2d8d2", fontSize: 12, width: "100%",
+                minHeight: "auto",
+              }}>
+              <LogOut size={14} /> 退出登录
+            </button>
           </div>
-          <button
-            onClick={logout}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "8px 12px", background: "transparent",
-              border: 0, borderRadius: 8, cursor: "pointer",
-              color: "#d2d8d2", fontSize: 12, width: "100%",
-              minHeight: "auto",
-            }}
-          >
-            <LogOut size={14} /> 退出登录
-          </button>
-        </div>
+        )}
       </aside>
       <section className="content">{children}</section>
+      <button
+        className="sidebarToggle"
+        onClick={() => setCollapsed(!collapsed)}
+        title={collapsed ? "展开侧栏" : "收起侧栏"}
+      >
+        {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+      </button>
     </div>
   );
 }

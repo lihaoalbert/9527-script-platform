@@ -158,12 +158,17 @@ export class StudioService {
       const project = this.prisma.enabled
         ? await this.prisma.project.findUnique({ where: { id: projectId } })
         : null;
-      const phase = (project?.currentPhase ?? "STORY_KERNEL") as ProjectPhase;
+      const currentPhase = (project?.currentPhase ?? "STORY_KERNEL") as ProjectPhase;
+
+      // Detect what phase the user is actually asking about (for reviewer in manual mode)
+      const detectedPhase = input.targetPersona === "reviewer"
+        ? this.detectPhaseFromMessage(input.content, currentPhase)
+        : currentPhase;
 
       const messages = await this.memoryService.assembleContext(
         projectId,
         input.targetPersona,
-        phase
+        detectedPhase
       );
 
       // Add the user's new message
@@ -226,6 +231,17 @@ export class StudioService {
     }
 
     return { userMessage, aiMessage };
+  }
+
+  private detectPhaseFromMessage(content: string, defaultPhase: ProjectPhase): ProjectPhase {
+    const lower = content.toLowerCase();
+    if (lower.includes("故事内核") || lower.includes("logline") || lower.includes("梗概")) return "STORY_KERNEL";
+    if (lower.includes("世界观") || lower.includes("世界规则") || lower.includes("设定")) return "WORLD_BUILDING";
+    if (lower.includes("人物") || lower.includes("角色") || lower.includes("人设") || lower.includes("主角")) return "CHARACTERS";
+    if (lower.includes("大纲") || lower.includes("分集") || lower.includes("集数")) return "EPISODE_OUTLINES";
+    if (lower.includes("制作要点") || lower.includes("受众") || lower.includes("卖点")) return "PRODUCTION_NOTES";
+    if (lower.includes("分集生成") || lower.includes("剧本正文") || lower.includes("第") && lower.includes("集")) return "EPISODE_GENERATION";
+    return defaultPhase;
   }
 
   private async processAiData(

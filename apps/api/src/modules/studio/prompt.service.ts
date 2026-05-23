@@ -132,46 +132,36 @@ data JSON Schema：
     title: "审核 — 故事内核",
     template: `【任务：审查故事内核】
 审查Logline锋利度、冲突升级空间、情感钩子是否成立、差异化程度。
-给出0-100综合评分并说明理由。≥90分表示通过。
 
-data JSON Schema：
-{ "total": 85, "locked": false, "suggestions": ["建议1", "建议2"] }`,
+【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。示例：{"content":"评语","data":{"total":85,"locked":false,"suggestions":["建议1","建议2"]}}`,
   },
   "studio-reviewer-world-building": {
     title: "审核 — 世界观",
     template: `【任务：审查世界观】
 审查规则自洽性、限制是否严格、权力结构压力点、揭秘节奏、情感空洞。
-给出0-100综合评分。≥90表示通过。
 
-data JSON Schema：
-{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
+【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。`,
   },
   "studio-reviewer-characters": {
     title: "审核 — 人物",
     template: `【任务：审查人物设定】
 审查欲望/恐惧清晰度、关系网张力、软肋真实性、动机可信度、弧线可信度、台词辨识度。
-给出0-100综合评分。≥90表示通过。
 
-data JSON Schema：
-{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
+【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。示例：{"content":"评语","data":{"total":85,"locked":false,"suggestions":["建议1","建议2"]}}`,
   },
   "studio-reviewer-episode-outlines": {
     title: "审核 — 分集大纲",
     template: `【任务：审查分集大纲】
 审查节奏是否有尿点、钩子是否够强、支线比例、转折点冲击力。
-给出0-100综合评分。≥90表示通过。
 
-data JSON Schema：
-{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
+【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。`,
   },
   "studio-reviewer-production-notes": {
     title: "审核 — 制作要点",
     template: `【任务：审查制作要点】
 审查差异化是否真实、风险应对、核心卖点可行性。
-给出0-100综合评分。≥90表示通过。
 
-data JSON Schema：
-{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
+【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。`,
   },
   "studio-reviewer-episode-scoring": {
     title: "审核 — 分集评分",

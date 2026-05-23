@@ -28,7 +28,7 @@ export class AiService {
   ): Promise<string> {
     const key = overrideKey || this.apiKey;
     const mdl = overrideModel || this.model;
-    const provider = overrideProvider || process.env.AI_PROVIDER || "deepseek";
+    const provider = (overrideProvider || process.env.AI_PROVIDER || "deepseek").toLowerCase();
     const baseUrl = PROVIDER_URLS[provider] || PROVIDER_URLS.deepseek;
 
     if (!key) {

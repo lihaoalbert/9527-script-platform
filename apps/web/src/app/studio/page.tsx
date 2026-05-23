@@ -838,7 +838,8 @@ export default function StudioPage() {
 // ─── Sub-components ───
 
 function PlanSection({ title, data, isArray, onMaximize }: { title: string; data: Record<string, unknown> | Record<string, unknown>[]; isArray?: boolean; onMaximize: (title: string, content: string) => void }) {
-  const isEmpty = isArray ? (data as unknown[]).length === 0 : Object.keys(data as Record<string, unknown>).length === 0;
+  const actuallyArray = isArray || Array.isArray(data);
+  const isEmpty = actuallyArray ? (Array.isArray(data) ? data.length : 0) === 0 : Object.keys(data as Record<string, unknown>).length === 0;
   const [open, setOpen] = useState(!isEmpty);
 
   useEffect(() => {
@@ -864,9 +865,9 @@ function PlanSection({ title, data, isArray, onMaximize }: { title: string; data
         <div className="planSectionBody">
           {isEmpty ? (
             <p className="planHint">此部分尚未填写，在对话中与编剧小Q讨论完善。</p>
-          ) : isArray ? (
+          ) : (isArray || Array.isArray(data)) ? (
             <div className="planFields">
-              {(data as Record<string, unknown>[]).map((item, i) => (
+              {(Array.isArray(data) ? data : []).map((item, i) => (
                 <div key={i} className="planCard">
                   <div className="planCardIndex">{item.episodeNumber ? `第${item.episodeNumber}集` : item.name ? String(item.name) : `#${i + 1}`}</div>
                   <div className="planCardBody">

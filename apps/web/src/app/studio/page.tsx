@@ -222,24 +222,33 @@ export default function StudioPage() {
   async function sendMessage() {
     if (!input.trim() || !activeProjectId || loading) return;
     const content = input;
+    const persona = activePersona;
+    const personaName = persona === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name;
+
+    // Optimistically add user message immediately
+    const userMsg: MessageData = {
+      id: `user-${Date.now()}`, role: "USER", content,
+      phase: null, step: null, decision: null, createdAt: new Date().toISOString(),
+    };
     setInput("");
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     try {
       const res = await fetch(`${API}/studio/projects/${activeProjectId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, targetPersona: activePersona }),
+        body: JSON.stringify({ content, targetPersona: persona }),
       });
       if (res.ok) {
-        const { userMessage, aiMessage } = await res.json();
-        setMessages((prev) => [...prev, userMessage, aiMessage]);
-        // Refresh project detail (plan may have updated)
+        const { userMessage: serverUserMsg, aiMessage } = await res.json();
+        // Replace optimistic user message with server version, add AI response
+        setMessages((prev) => prev.map((m) => m.id === userMsg.id ? serverUserMsg : m).concat(aiMessage));
         const detailRes = await fetch(`${API}/studio/projects/${activeProjectId}`);
         if (detailRes.ok) setProjectDetail(await detailRes.json());
       }
     } catch (e) {
-      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: "SYSTEM", content: `Error: ${e}`, phase: null, step: null, decision: null, createdAt: new Date().toISOString() }]);
+      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: "SYSTEM", content: `发送失败：${e}`, phase: null, step: null, decision: null, createdAt: new Date().toISOString() }]);
     } finally {
       setLoading(false);
     }
@@ -539,7 +548,9 @@ export default function StudioPage() {
               <div className="messageContent">
                 <div className="messageName">{activePersona === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name}</div>
                 <div className="messageText loading">
-                  <LoaderCircle size={16} className="spin" /> 思考中...
+                  <LoaderCircle size={16} className="spin" />
+                  <span>{activePersona === "writer" ? `${WRITER_PERSONA.name} 正在创作中` : `${REVIEWER_PERSONA.name} 正在审查中`}</span>
+                  <span className="loadingDots"><span>.</span><span>.</span><span>.</span></span>
                 </div>
               </div>
             </div>

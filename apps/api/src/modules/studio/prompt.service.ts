@@ -197,9 +197,13 @@ export class PromptService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getPrompt(key: string): Promise<string> {
-    if (this.prisma.enabled) {
-      const record = await this.prisma.aiPrompt.findUnique({ where: { key } });
-      if (record?.enabled && record.template) return record.template;
+    try {
+      if (this.prisma.enabled) {
+        const record = await this.prisma.aiPrompt.findUnique({ where: { key } });
+        if (record?.enabled && record.template) return record.template;
+      }
+    } catch {
+      // DB unreachable, fall through to default
     }
     return DEFAULT_PROMPTS[key]?.template ?? "";
   }

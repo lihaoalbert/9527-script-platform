@@ -21,7 +21,10 @@ const FIELD_MAP: Record<string, string> = {
   CHARACTERS: "characters", EPISODE_OUTLINES: "episodeOutlines", PRODUCTION_NOTES: "productionNotes",
 };
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 8;
+const MIN_REVIEW_ROUNDS = 3;
+const RELAXED_THRESHOLD = 80;
+const RELAXED_START_ROUND = 4;
 
 const runningLoops = new Map<string, { abort: boolean }>();
 
@@ -201,17 +204,34 @@ export class AutoModeService {
       lastSuggestions = reviewerResult.suggestions;
       await this.delay(2000 + Math.random() * 1000);
 
+      // Scoring rules:
+      // - ≥90: pass immediately
+      // - First 3 rounds (<90): must continue revising, even if ≥80
+      // - Round 4+: ≥80 passes
+      // - Max 8 rounds
       if (score >= 90) {
         return "passed";
       }
 
-      if (attempt < MAX_ATTEMPTS) {
+      const mustContinue = attempt < MIN_REVIEW_ROUNDS;
+      const relaxedPass = attempt >= RELAXED_START_ROUND && score >= RELAXED_THRESHOLD;
+
+      if (!mustContinue && relaxedPass) {
         await this.saveSystemMessage(projectId, phase,
-          `自动模式：${label}当前${score}分（未达90），审核官提出${lastSuggestions.length}条意见，第${attempt + 1}轮修订...`);
+          `自动模式：${label}第${attempt}轮${score}分（≥80），审核官已认可，通过。`);
+        return "passed";
+      }
+
+      if (attempt < MAX_ATTEMPTS) {
+        const reason = mustContinue
+          ? `（前${MIN_REVIEW_ROUNDS}轮必须完成，当前第${attempt}轮）`
+          : `（未达${RELAXED_THRESHOLD}分）`;
+        await this.saveSystemMessage(projectId, phase,
+          `自动模式：${label}当前${score}分${reason}，审核官提出${lastSuggestions.length}条意见，第${attempt + 1}轮修订...`);
       }
     }
 
-    return score >= 90 ? "passed" : "max_attempts";
+    return "max_attempts";
   }
 
   // ─── Safe Call Wrapper ───

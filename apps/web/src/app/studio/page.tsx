@@ -788,13 +788,60 @@ function PlanSection({ title, data, isArray }: { title: string; data: Record<str
         <div className="planSectionBody">
           {isEmpty ? (
             <p className="planHint">此部分尚未填写，在对话中与编剧小Q讨论完善。</p>
+          ) : isArray ? (
+            <div className="planFields">
+              {(data as Record<string, unknown>[]).map((item, i) => (
+                <div key={i} className="planCard">
+                  <div className="planCardIndex">{item.episodeNumber ? `第${item.episodeNumber}集` : item.name ? String(item.name) : `#${i + 1}`}</div>
+                  <div className="planCardBody">
+                    {Object.entries(item).filter(([k]) => !["episodeNumber", "name"].includes(k) || !item.episodeNumber).map(([k, v]) => (
+                      <div key={k} className="planField">
+                        <span className="planFieldLabel">{k}</span>
+                        <span className="planFieldValue">
+                          {typeof v === "string" ? v : Array.isArray(v) ? v.map((x, j) => <div key={j} className="planFieldNested">{typeof x === "object" ? JSON.stringify(x) : String(x)}</div>) : JSON.stringify(v)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <pre className="planJson">{JSON.stringify(data, null, 2)}</pre>
+            <div className="planFields">
+              {Object.entries(data as Record<string, unknown>).map(([k, v]) => (
+                <div key={k} className="planField">
+                  <span className="planFieldLabel">{fieldLabel(k)}</span>
+                  <span className="planFieldValue">
+                    {Array.isArray(v)
+                      ? v.map((x, j) => <div key={j} className="planFieldNested">{typeof x === "object" ? JSON.stringify(x, null, 1) : String(x)}</div>)
+                      : typeof v === "object" && v !== null
+                        ? <pre className="planFieldJson">{JSON.stringify(v, null, 2)}</pre>
+                        : String(v)}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
     </div>
   );
+}
+
+function fieldLabel(key: string): string {
+  const labels: Record<string, string> = {
+    logline: "Logline", theme: "主题", externalConflict: "外部冲突", internalConflict: "内部冲突",
+    relationshipConflict: "关系冲突", emotionalHook: "情感钩子", chosenPath: "创作路径",
+    setting: "背景设定", rules: "世界规则", powerStructure: "权力结构", hiddenInfo: "隐藏信息",
+    tone: "基调", targetAudience: "目标受众", competitiveAnalysis: "差异化分析",
+    risks: "风险点", coreSellingPoint: "核心卖点", promotionAngles: "宣发角度",
+    paths: "创作路径选项", traits: "特征", surfaceDesire: "表面欲望", deepNeed: "真正需求",
+    fear: "软肋/恐惧", arc: "角色弧线", signatureLine: "代表台词", relationships: "关系",
+    role: "角色定位", age: "年龄", coreEvent: "核心事件", hook: "钩子",
+    emotionalPeak: "情绪高点", infoRevealed: "揭示信息", subplotProgress: "支线进展",
+    title: "标题",
+  };
+  return labels[key] ?? key;
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {

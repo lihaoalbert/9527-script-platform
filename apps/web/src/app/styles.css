@@ -1051,6 +1051,7 @@ li {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* Left Panel */
@@ -1922,6 +1923,7 @@ li {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .planSections {
@@ -2071,6 +2073,7 @@ li {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .episodeList {

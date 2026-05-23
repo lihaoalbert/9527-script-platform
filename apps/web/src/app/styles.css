@@ -1331,8 +1331,13 @@ li {
   gap: 12px;
 }
 
-.chatInput textarea {
+.chatInputWrapper {
   flex: 1;
+  position: relative;
+}
+
+.chatInputWrapper textarea {
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px 16px;
@@ -1342,14 +1347,71 @@ li {
   max-height: 120px;
 }
 
-.chatInput textarea:focus {
+.chatInputWrapper textarea:focus {
   border-color: var(--accent);
   outline: none;
 }
 
-.chatInput button {
+.chatInputRight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.chatInputRight button {
   padding: 0 20px;
   min-height: 48px;
+}
+
+.activePersonaBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* @-mention dropdown */
+.mentionDropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  z-index: 10;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  min-height: auto;
+  border-radius: 0;
+}
+
+.mentionItem:hover,
+.mentionItem.active {
+  background: #f0faf8;
+}
+
+.mentionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* Right Panel - Result */
@@ -1665,6 +1727,54 @@ li {
 .episodeMiniItem:hover { background: #f4f3ef; color: var(--ink); }
 .episodeMiniItem.locked { color: var(--accent); }
 .episodeMiniItem.active { background: #f0faf8; font-weight: 600; }
+
+/* ─── Chat Header V2 ─── */
+
+.chatHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.chatHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.projectTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectSubtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.projectSubtitle .projectStatus {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.chatHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 
 /* ─── Phase Indicator (Chat Header) ─── */
 

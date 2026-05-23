@@ -119,6 +119,49 @@ export default function StudioPage() {
     } catch (e) { console.error(e); }
   }
 
+  // @-mention
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const MENTIONS = [
+    { role: "writer" as const, name: WRITER_PERSONA.name, color: WRITER_PERSONA.color },
+    { role: "reviewer" as const, name: REVIEWER_PERSONA.name, color: REVIEWER_PERSONA.color },
+  ];
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setInput(val);
+
+    // Detect @ at the end of input
+    const lastAt = val.lastIndexOf("@");
+    if (lastAt >= 0 && val.slice(lastAt).split(/\s/)[0].length <= 5) {
+      setShowMentions(true);
+      setMentionIdx(0);
+    } else {
+      setShowMentions(false);
+    }
+  }
+
+  function selectMention(persona: typeof MENTIONS[0]) {
+    const lastAt = input.lastIndexOf("@");
+    const before = input.slice(0, lastAt);
+    setInput(before + `@${persona.name} `);
+    setActivePersona(persona.role);
+    setShowMentions(false);
+    textareaRef.current?.focus();
+  }
+
+  function handleInputKeyDown(e: React.KeyboardEvent) {
+    if (showMentions) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => Math.min(i + 1, MENTIONS.length - 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => Math.max(i - 1, 0)); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(MENTIONS[mentionIdx]); return; }
+      if (e.key === "Escape") { setShowMentions(false); return; }
+    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); }
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll
@@ -416,51 +459,39 @@ export default function StudioPage() {
       {/* Middle Panel — Chat */}
       <main className="studioMiddle">
         <div className="chatHeader">
-          <div className="roleSelector">
-            <button
-              className={`roleBtn ${activePersona === "writer" ? "active" : ""}`}
-              onClick={() => setActivePersona("writer")}
-              style={{ "--role-color": WRITER_PERSONA.color } as React.CSSProperties}
-            >
-              {WRITER_PERSONA.avatar}
-              {WRITER_PERSONA.name}
-            </button>
-            <button
-              className={`roleBtn ${activePersona === "reviewer" ? "active" : ""}`}
-              onClick={() => setActivePersona("reviewer")}
-              style={{ "--role-color": REVIEWER_PERSONA.color } as React.CSSProperties}
-            >
-              {REVIEWER_PERSONA.avatar}
-              {REVIEWER_PERSONA.name}
-            </button>
+          <div className="chatHeaderLeft">
+            {projectDetail ? (
+              <>
+                <div className="projectTitle">{projectDetail.name}</div>
+                <div className="projectSubtitle">
+                  <span className={`projectStatus status${projectDetail.status}`}>
+                    {projectDetail.status === "PLANNING" ? "规划中" : projectDetail.status === "EPISODES" ? "生成中" : "已完成"}
+                  </span>
+                  <span>{PHASE_LABELS[projectDetail.currentPhase] ?? projectDetail.currentPhase}</span>
+                  <span>更新于 {new Date(projectDetail.plan?.lockedAt ?? "").toLocaleDateString("zh-CN") || "刚刚"}</span>
+                </div>
+              </>
+            ) : (
+              <div className="projectTitle">选择或创建一个项目</div>
+            )}
           </div>
           {projectDetail && (
-            <div className="phaseIndicator">
-              {PHASE_LABELS[projectDetail.currentPhase] ?? projectDetail.currentPhase}
-            </div>
-          )}
-          {projectDetail && (
-            <button
-              className={`autoModeToggle ${autoRunning ? "active" : ""}`}
-              onClick={() => { autoRunning ? void stopAutoMode() : void startAutoMode(); }}
-              title={autoRunning ? "停止自动模式" : "开启自动模式"}
-            >
-              {autoRunning ? (
-                <><LoaderCircle size={14} className="spin" /> 自动中</>
-              ) : (
-                <><Sparkles size={14} /> 自动</>
+            <div className="chatHeaderActions">
+              <button
+                className={`autoModeToggle ${autoRunning ? "active" : ""}`}
+                onClick={() => { autoRunning ? void stopAutoMode() : void startAutoMode(); }}
+              >
+                {autoRunning ? <><LoaderCircle size={14} className="spin" /> 自动中</> : <><Sparkles size={14} /> 自动</>}
+              </button>
+              <button className="toolbarBtn" onClick={downloadProject} title="下载">
+                <Download size={14} />
+              </button>
+              {projectDetail.episodes.some((e) => e.status === "LOCKED") && (
+                <button className="toolbarBtn submit" onClick={() => { void submitToLibrary(); }}>
+                  <Upload size={14} /> 提交
+                </button>
               )}
-            </button>
-          )}
-          {projectDetail && (
-            <button className="toolbarBtn" onClick={downloadProject} title="下载 Markdown">
-              <Download size={14} />
-            </button>
-          )}
-          {projectDetail && projectDetail.episodes.some((e) => e.status === "LOCKED") && (
-            <button className="toolbarBtn submit" onClick={() => { void submitToLibrary(); }} title="提交到剧本库">
-              <Upload size={14} /> 提交
-            </button>
+            </div>
           )}
         </div>
 
@@ -517,18 +548,39 @@ export default function StudioPage() {
         </div>
 
         <div className="chatInput">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={activeProjectId ? `向${activePersona === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name}描述你的想法...` : "先选择或创建一个项目"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); }
-            }}
-            disabled={!activeProjectId}
-          />
-          <button onClick={() => { void sendMessage(); }} disabled={loading || !input.trim() || !activeProjectId}>
-            <Send size={18} />
-          </button>
+          <div className="chatInputWrapper">
+            {showMentions && (
+              <div className="mentionDropdown">
+                {MENTIONS.map((m, i) => (
+                  <button
+                    key={m.role}
+                    className={`mentionItem ${i === mentionIdx ? "active" : ""}`}
+                    onClick={() => selectMention(m)}
+                    onMouseEnter={() => setMentionIdx(i)}
+                  >
+                    <span className="mentionDot" style={{ background: m.color }} />
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              placeholder={activeProjectId ? "输入 @ 选择对话角色..." : "先选择或创建一个项目"}
+              onKeyDown={handleInputKeyDown}
+              disabled={!activeProjectId}
+            />
+          </div>
+          <div className="chatInputRight">
+            <span className="activePersonaBadge" style={{ background: activePersona === "writer" ? WRITER_PERSONA.color : REVIEWER_PERSONA.color }}>
+              @{activePersona === "writer" ? WRITER_PERSONA.name : REVIEWER_PERSONA.name}
+            </span>
+            <button onClick={() => { void sendMessage(); }} disabled={loading || !input.trim() || !activeProjectId}>
+              <Send size={18} />
+            </button>
+          </div>
         </div>
       </main>
 

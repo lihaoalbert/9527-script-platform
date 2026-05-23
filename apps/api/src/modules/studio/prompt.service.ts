@@ -124,32 +124,47 @@ data JSON Schema：
   "studio-reviewer-story-kernel": {
     title: "审核 — 故事内核",
     template: `【任务：审查故事内核】
-审查：Logline锋利度、冲突升级空间、情感钩子是否成立、差异化程度。
-content：审核意见和修改建议。data 为空对象 {}。`,
+审查Logline锋利度、冲突升级空间、情感钩子是否成立、差异化程度。
+给出0-100综合评分并说明理由。≥90分表示通过。
+
+data JSON Schema：
+{ "total": 85, "locked": false, "suggestions": ["建议1", "建议2"] }`,
   },
   "studio-reviewer-world-building": {
     title: "审核 — 世界观",
     template: `【任务：审查世界观】
-审查：规则自洽性、限制是否严格、权力结构压力点、揭秘节奏、情感空洞。
-content：审核意见。data 为空对象 {}。`,
+审查规则自洽性、限制是否严格、权力结构压力点、揭秘节奏、情感空洞。
+给出0-100综合评分。≥90表示通过。
+
+data JSON Schema：
+{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
   },
   "studio-reviewer-characters": {
     title: "审核 — 人物",
     template: `【任务：审查人物设定】
-审查：欲望/恐惧清晰度、关系网张力、软肋真实性、动机可信度、弧线可信度、台词辨识度。
-content：审核意见。data 为空对象 {}。`,
+审查欲望/恐惧清晰度、关系网张力、软肋真实性、动机可信度、弧线可信度、台词辨识度。
+给出0-100综合评分。≥90表示通过。
+
+data JSON Schema：
+{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
   },
   "studio-reviewer-episode-outlines": {
     title: "审核 — 分集大纲",
     template: `【任务：审查分集大纲】
-审查：节奏是否有尿点、钩子是否够强、支线比例、转折点冲击力。
-content：审核意见。data 为空对象 {}。`,
+审查节奏是否有尿点、钩子是否够强、支线比例、转折点冲击力。
+给出0-100综合评分。≥90表示通过。
+
+data JSON Schema：
+{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
   },
   "studio-reviewer-production-notes": {
     title: "审核 — 制作要点",
     template: `【任务：审查制作要点】
-审查：差异化是否真实、风险应对、核心卖点可行性。
-content：审核意见。data 为空对象 {}。`,
+审查差异化是否真实、风险应对、核心卖点可行性。
+给出0-100综合评分。≥90表示通过。
+
+data JSON Schema：
+{ "total": 85, "locked": false, "suggestions": ["建议"] }`,
   },
   "studio-reviewer-episode-scoring": {
     title: "审核 — 分集评分",

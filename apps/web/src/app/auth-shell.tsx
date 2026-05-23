@@ -21,82 +21,86 @@ function Shell({ children }: { children: ReactNode }) {
   const { user, token, logout } = useAuth();
   const isPublic = PUBLIC_PATHS.includes(pathname);
   const [collapsed, setCollapsed] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!isPublic && !token) {
       router.push("/login");
+    } else {
+      setReady(true);
     }
   }, [isPublic, token, router]);
 
-  // Login page renders without sidebar
-  if (isPublic) return <>{children}</>;
-
-  // Loading state while checking auth
-  if (!token || !user) {
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", background: "var(--bg)",
-      }}>
-        <p style={{ color: "var(--muted)" }}>加载中...</p>
-      </div>
-    );
-  }
+  // Always show the same shell structure to keep hook count stable
+  const showSidebar = ready && !isPublic && token && user;
 
   return (
-    <div className={`shell ${collapsed ? "shellCollapsed" : ""}`}>
-      <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-        {!collapsed && (
-          <div className="brand">
-            <span className="brandMark">9527</span>
-            <div>
-              <strong>剧本平台</strong>
-              <small>短剧创作与版权运营</small>
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {showSidebar && (
+        <aside className={`sidebar ${collapsed ? "collapsed" : ""}`} style={{ flexShrink: 0, width: collapsed ? 60 : 260, transition: "width 0.2s" }}>
+          {!collapsed ? (
+            <div className="brand">
+              <span className="brandMark">9527</span>
+              <div>
+                <strong>剧本平台</strong>
+                <small>短剧创作与版权运营</small>
+              </div>
             </div>
-          </div>
-        )}
-        {collapsed && (
-          <div className="brand" style={{ justifyContent: "center", padding: "12px 0" }}>
-            <span className="brandMark">95</span>
-          </div>
-        )}
-        <nav>
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link key={item.href} href={item.href} className={isActive ? "active" : ""} title={item.label}>
-                <item.icon size={18} />
-                {!collapsed && item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        {!collapsed && (
-          <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-            <div style={{ padding: "8px 12px", fontSize: 13, color: "#d2d8d2" }}>
-              {user.name}
+          ) : (
+            <div className="brand" style={{ justifyContent: "center", padding: "12px 0" }}>
+              <span className="brandMark">95</span>
             </div>
-            <button onClick={logout}
-              style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 12px", background: "transparent",
-                border: 0, borderRadius: 8, cursor: "pointer",
-                color: "#d2d8d2", fontSize: 12, width: "100%",
-                minHeight: "auto",
+          )}
+          <nav>
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              return (
+                <Link key={item.href} href={item.href} className={isActive ? "active" : ""} title={item.label}>
+                  <item.icon size={18} />
+                  {!collapsed && item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          {!collapsed && (
+            <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+              <div style={{ padding: "8px 12px", fontSize: 13, color: "#d2d8d2" }}>
+                {user?.name}
+              </div>
+              <button onClick={logout} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+                background: "transparent", border: 0, borderRadius: 8, cursor: "pointer",
+                color: "#d2d8d2", fontSize: 12, width: "100%", minHeight: "auto",
               }}>
-              <LogOut size={14} /> 退出登录
-            </button>
+                <LogOut size={14} /> 退出登录
+              </button>
+            </div>
+          )}
+        </aside>
+      )}
+      {showSidebar && (
+        <button className="sidebarToggle" style={{
+          position: "fixed", left: collapsed ? 52 : 252, top: 12, zIndex: 10,
+          background: "var(--panel)", border: "1px solid var(--line)", color: "var(--muted)",
+          cursor: "pointer", width: 28, height: 28, borderRadius: 6,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 0, minHeight: "auto", transition: "left 0.2s",
+        }}
+          onClick={() => setCollapsed(!collapsed)}
+          title={collapsed ? "展开侧栏" : "收起侧栏"}
+        >
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
+      )}
+      <main style={{ flex: 1, minWidth: 0, padding: showSidebar ? 30 : 0, background: showSidebar ? "var(--bg)" : "transparent" }}>
+        {!ready && !isPublic ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+            <p style={{ color: "var(--muted)" }}>加载中...</p>
           </div>
+        ) : (
+          children
         )}
-      </aside>
-      <section className="content">{children}</section>
-      <button
-        className="sidebarToggle"
-        onClick={() => setCollapsed(!collapsed)}
-        title={collapsed ? "展开侧栏" : "收起侧栏"}
-      >
-        {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-      </button>
+      </main>
     </div>
   );
 }

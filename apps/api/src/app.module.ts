@@ -7,11 +7,12 @@ import { JwtAuthGuard } from "./common/jwt.guard";
 import { AiModule } from "./modules/ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CreditsModule } from "./modules/credits/credits.module";
+import { AdminController } from "./modules/admin/admin.controller";
 import { ScriptsModule } from "./modules/scripts/scripts.module";
 import { StudioModule } from "./modules/studio/studio.module";
 
 @Module({
-  controllers: [AppController],
+  controllers: [AppController, AdminController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     CommonModule,

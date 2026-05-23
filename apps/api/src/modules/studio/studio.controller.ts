@@ -21,7 +21,8 @@ export class StudioController {
 
   @Get("projects")
   listProjects(@CurrentUser() user: JwtUser, @Query("status") status?: string) {
-    return this.studioService.listProjects(user.sub, status);
+    const ownerId = user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? undefined : user.sub;
+    return this.studioService.listProjects(ownerId, status);
   }
 
   @Patch("projects/:id")

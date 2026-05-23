@@ -39,7 +39,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (activeTab === "scripts") {
-      void fetch("/api/scripts")
+      void authFetch("/api/scripts")
         .then((r) => r.ok ? r.json() : null)
         .then((data) => data && setScripts(data))
         .catch(console.error);

@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import { Search, LockKeyhole, Download, LoaderCircle } from "lucide-react";
 
@@ -42,7 +43,7 @@ export default function ScriptsPage() {
   async function loadScripts(query = "") {
     setLoading((l) => ({ ...l, list: true }));
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `/api/scripts${query ? `?q=${encodeURIComponent(query)}` : ""}`
       );
       if (res.ok) {
@@ -62,7 +63,7 @@ export default function ScriptsPage() {
   async function loadPreview(scriptId: string) {
     setLoading((l) => ({ ...l, preview: true }));
     try {
-      const res = await fetch(`/api/scripts/${scriptId}/preview`);
+      const res = await authFetch(`/api/scripts/${scriptId}/preview`);
       setPreview(await res.json());
     } catch (e) {
       console.error("Failed to load preview:", e);
@@ -74,10 +75,9 @@ export default function ScriptsPage() {
   async function handleLock(scriptId: string) {
     setLoading((l) => ({ ...l, lock: scriptId }));
     try {
-      await fetch(`/api/scripts/${scriptId}/lock`, {
+      await authFetch(`/api/scripts/${scriptId}/lock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "demo-buyer-1" }),
       });
       await loadScripts(search);
     } catch (e) {

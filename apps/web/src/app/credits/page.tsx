@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import { WalletCards, ArrowDownLeft, ArrowUpRight, Clock } from "lucide-react";
 
@@ -23,7 +24,7 @@ export default function CreditsPage() {
   useEffect(() => {
     async function loadCredits() {
       try {
-        const res = await fetch("/api/credits/demo-user-1");
+        const res = await authFetch("/api/credits");
         if (res.ok) {
           const data = await res.json();
           setAccount({ userId: data.userId, balance: data.balance });

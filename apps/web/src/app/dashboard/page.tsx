@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, BookOpen, WalletCards, ArrowRight, CheckCircle2 } from "lucide-react";
@@ -56,7 +57,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const scriptsRes = await fetch("/api/scripts");
+        const scriptsRes = await authFetch("/api/scripts");
         if (scriptsRes.ok) {
           setScripts(await scriptsRes.json());
         }
@@ -64,7 +65,7 @@ export default function DashboardPage() {
         console.error("Failed to load scripts:", e);
       }
       try {
-        const creditsRes = await fetch("/api/credits/demo-user-1");
+        const creditsRes = await authFetch("/api/credits");
         if (creditsRes.ok) {
           const creditData = await creditsRes.json();
           setCredits({ userId: creditData.userId, balance: creditData.balance });

@@ -1,7 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from "@nestjs/common";
+import { CurrentUser } from "../../common/auth.decorator";
 import { AutoModeService } from "./auto-mode.service";
 import { PromptService } from "./prompt.service";
 import { StudioService } from "./studio.service";
+
+type JwtUser = { sub: string; email: string; name: string; role: string };
 
 @Controller("studio")
 export class StudioController {
@@ -12,18 +15,13 @@ export class StudioController {
   ) {}
 
   @Post("projects")
-  createProject(@Body() body: { name: string; genre?: string; ownerId: string }) {
-    return this.studioService.createProject(body);
+  createProject(@Body() body: { name: string; genre?: string }, @CurrentUser() user: JwtUser) {
+    return this.studioService.createProject({ ...body, ownerId: user.sub });
   }
 
   @Get("projects")
-  listProjects(@Query("ownerId") ownerId?: string, @Query("status") status?: string) {
-    return this.studioService.listProjects(ownerId, status);
-  }
-
-  @Get("projects/:id")
-  getProject(@Param("id") id: string) {
-    return this.studioService.getProject(id);
+  listProjects(@CurrentUser() user: JwtUser, @Query("status") status?: string) {
+    return this.studioService.listProjects(user.sub, status);
   }
 
   @Patch("projects/:id")
@@ -127,8 +125,8 @@ export class StudioController {
   }
 
   @Post("projects/:id/submit")
-  submitToLibrary(@Param("id") id: string, @Body() body: { authorId: string }) {
-    return this.studioService.submitToLibrary(id, body.authorId);
+  submitToLibrary(@Param("id") id: string, @CurrentUser() user: JwtUser) {
+    return this.studioService.submitToLibrary(id, user.sub);
   }
 
   @Delete("projects/:id/permanent")

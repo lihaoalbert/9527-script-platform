@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import { Users, BookOpen, Wallet, Bot, Settings } from "lucide-react";
 

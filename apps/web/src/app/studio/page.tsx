@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "../auth-context";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
@@ -91,14 +92,14 @@ export default function StudioPage() {
 
   async function loadPrompts() {
     try {
-      const res = await fetch(`${API}/studio/prompts`);
+      const res = await authFetch(`${API}/studio/prompts`);
       if (res.ok) setPrompts(await res.json());
     } catch (e) { console.error(e); }
   }
 
   async function savePrompt(key: string) {
     try {
-      await fetch(`${API}/studio/prompts/${key}`, {
+      await authFetch(`${API}/studio/prompts/${key}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ template: editTemplate, enabled: true }),
@@ -110,7 +111,7 @@ export default function StudioPage() {
 
   async function resetPrompt(key: string) {
     try {
-      const res = await fetch(`${API}/studio/prompts/${key}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/studio/prompts/${key}`, { method: "DELETE" });
       if (res.ok) {
         const def = await res.json();
         setEditTemplate(def.template);
@@ -181,7 +182,7 @@ export default function StudioPage() {
 
   async function loadProjects() {
     try {
-      const res = await fetch(`${API}/studio/projects?ownerId=demo-user-1`);
+      const res = await authFetch(`${API}/studio/projects`);
       if (res.ok) setProjects(await res.json());
     } catch (e) { console.error(e); }
   }
@@ -190,8 +191,8 @@ export default function StudioPage() {
     setActiveProjectId(id);
     try {
       const [detailRes, msgRes] = await Promise.all([
-        fetch(`${API}/studio/projects/${id}`),
-        fetch(`${API}/studio/projects/${id}/messages?limit=50`),
+        authFetch(`${API}/studio/projects/${id}`),
+        authFetch(`${API}/studio/projects/${id}/messages?limit=50`),
       ]);
       if (detailRes.ok) {
         const d = await detailRes.json();
@@ -208,10 +209,10 @@ export default function StudioPage() {
   async function createProject() {
     if (!newName.trim()) return;
     try {
-      const res = await fetch(`${API}/studio/projects`, {
+      const res = await authFetch(`${API}/studio/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), genre: newGenre.trim() || undefined, ownerId: "demo-user-1" }),
+        body: JSON.stringify({ name: newName.trim(), genre: newGenre.trim() || undefined }),
       });
       if (res.ok) {
         setShowNewProject(false);
@@ -240,7 +241,7 @@ export default function StudioPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/studio/projects/${activeProjectId}/chat`, {
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, targetPersona: persona }),
@@ -249,7 +250,7 @@ export default function StudioPage() {
         const { userMessage: serverUserMsg, aiMessage } = await res.json();
         // Replace optimistic user message with server version, add AI response
         setMessages((prev) => prev.map((m) => m.id === userMsg.id ? serverUserMsg : m).concat(aiMessage));
-        const detailRes = await fetch(`${API}/studio/projects/${activeProjectId}`);
+        const detailRes = await authFetch(`${API}/studio/projects/${activeProjectId}`);
         if (detailRes.ok) setProjectDetail(await detailRes.json());
       }
     } catch (e) {
@@ -262,7 +263,7 @@ export default function StudioPage() {
   async function advanceStep() {
     if (!activeProjectId) return;
     try {
-      const res = await fetch(`${API}/studio/projects/${activeProjectId}/advance`, { method: "POST" });
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/advance`, { method: "POST" });
       if (res.ok) {
         const d = await selectProject(activeProjectId);
       }
@@ -272,7 +273,7 @@ export default function StudioPage() {
   async function lockPlan() {
     if (!activeProjectId) return;
     try {
-      const res = await fetch(`${API}/studio/projects/${activeProjectId}/lock-plan`, { method: "POST" });
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/lock-plan`, { method: "POST" });
       if (res.ok) {
         await selectProject(activeProjectId);
         setRightView("episode");
@@ -283,7 +284,7 @@ export default function StudioPage() {
   async function startAutoMode() {
     if (!activeProjectId) return;
     try {
-      await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/start`, { method: "POST" });
+      await authFetch(`${API}/studio/projects/${activeProjectId}/auto-mode/start`, { method: "POST" });
       setAutoRunning(true);
     } catch (e) { console.error(e); }
   }
@@ -291,7 +292,7 @@ export default function StudioPage() {
   async function stopAutoMode() {
     if (!activeProjectId) return;
     try {
-      await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/stop`, { method: "POST" });
+      await authFetch(`${API}/studio/projects/${activeProjectId}/auto-mode/stop`, { method: "POST" });
       setAutoRunning(false);
       await selectProject(activeProjectId);
     } catch (e) { console.error(e); }
@@ -302,14 +303,14 @@ export default function StudioPage() {
     if (!autoRunning || !activeProjectId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API}/studio/projects/${activeProjectId}/messages?limit=80`);
+        const res = await authFetch(`${API}/studio/projects/${activeProjectId}/messages?limit=80`);
         if (res.ok) {
           const msgs = await res.json();
           setMessages(msgs.reverse());
-          const detailRes = await fetch(`${API}/studio/projects/${activeProjectId}`);
+          const detailRes = await authFetch(`${API}/studio/projects/${activeProjectId}`);
           if (detailRes.ok) setProjectDetail(await detailRes.json());
           // Check if still running
-          const statusRes = await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
+          const statusRes = await authFetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
           if (statusRes.ok) {
             const status = await statusRes.json();
             if (!status.running) setAutoRunning(false);
@@ -325,7 +326,7 @@ export default function StudioPage() {
     if (!activeProjectId) return;
     (async () => {
       try {
-        const res = await fetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
+        const res = await authFetch(`${API}/studio/projects/${activeProjectId}/auto-mode/status`);
         if (res.ok) {
           const status = await res.json();
           setAutoRunning(status.running);
@@ -342,10 +343,9 @@ export default function StudioPage() {
   async function submitToLibrary() {
     if (!activeProjectId) return;
     try {
-      const res = await fetch(`${API}/studio/projects/${activeProjectId}/submit`, {
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authorId: "demo-user-1" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -358,7 +358,7 @@ export default function StudioPage() {
 
   async function archiveProject(id: string) {
     try {
-      await fetch(`${API}/studio/projects/${id}`, { method: "DELETE" });
+      await authFetch(`${API}/studio/projects/${id}`, { method: "DELETE" });
       if (activeProjectId === id) {
         setActiveProjectId(null);
         setProjectDetail(null);
@@ -371,7 +371,7 @@ export default function StudioPage() {
   async function deleteProjectPermanently(id: string) {
     if (!confirm("确定永久删除此项目？此操作不可撤销。")) return;
     try {
-      await fetch(`${API}/studio/projects/${id}/permanent`, { method: "DELETE" });
+      await authFetch(`${API}/studio/projects/${id}/permanent`, { method: "DELETE" });
       if (activeProjectId === id) {
         setActiveProjectId(null);
         setProjectDetail(null);
@@ -384,7 +384,7 @@ export default function StudioPage() {
   async function forceLockEpisode(epNum: number) {
     if (!activeProjectId) return;
     try {
-      await fetch(`${API}/studio/projects/${activeProjectId}/episodes/${epNum}/force-lock`, { method: "POST" });
+      await authFetch(`${API}/studio/projects/${activeProjectId}/episodes/${epNum}/force-lock`, { method: "POST" });
       await selectProject(activeProjectId);
     } catch (e) { console.error(e); }
   }

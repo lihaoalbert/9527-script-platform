@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { CurrentUser } from "../../common/auth.decorator";
 import { ScriptsService } from "./scripts.service";
+
+type JwtUser = { sub: string; email: string; name: string; role: string };
 
 @Controller("scripts")
 export class ScriptsController {
@@ -16,12 +19,12 @@ export class ScriptsController {
   }
 
   @Post()
-  create(@Body() body: { title: string; content: string; genre?: string; authorId: string }) {
-    return this.scriptsService.create(body);
+  create(@Body() body: { title: string; content: string; genre?: string }, @CurrentUser() user: JwtUser) {
+    return this.scriptsService.create({ ...body, authorId: user.sub });
   }
 
   @Post(":id/lock")
-  lock(@Param("id") id: string, @Body() body: { userId: string }) {
-    return this.scriptsService.lockForExclusiveUse(id, body.userId);
+  lock(@Param("id") id: string, @CurrentUser() user: JwtUser) {
+    return this.scriptsService.lockForExclusiveUse(id, user.sub);
   }
 }

@@ -587,6 +587,33 @@ export class StudioService {
     return { locked: true };
   }
 
+  async unlockEpisode(projectId: string, episodeNumber: number) {
+    if (!this.prisma.enabled) return { unlocked: true };
+
+    const episode = await this.prisma.projectEpisode.findUnique({
+      where: { projectId_episodeNumber: { projectId, episodeNumber } },
+    });
+    if (!episode) throw new NotFoundException("Episode not found");
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.projectEpisode.update({
+        where: { id: episode.id },
+        data: { status: "REVISION" },
+      });
+      await tx.conversationMessage.create({
+        data: {
+          projectId,
+          role: "SYSTEM",
+          content: `第${episodeNumber}集已解锁，可重新审查修改。`,
+          phase: "EPISODE_GENERATION",
+          decision: { action: "unlock_episode", episodeNumber },
+        },
+      });
+    });
+
+    return { unlocked: true };
+  }
+
   // ─── Download & Submit ───
 
   async generateMarkdown(projectId: string): Promise<{ filename: string; markdown: string }> {

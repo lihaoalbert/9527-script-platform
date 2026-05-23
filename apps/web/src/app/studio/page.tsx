@@ -411,6 +411,14 @@ export default function StudioPage() {
     } catch (e) { console.error(e); }
   }
 
+  async function unlockEpisode(epNum: number) {
+    if (!activeProjectId) return;
+    try {
+      await authFetch(`${API}/studio/projects/${activeProjectId}/episodes/${epNum}/unlock`, { method: "POST" });
+      await selectProject(activeProjectId);
+    } catch (e) { console.error(e); }
+  }
+
   const currentPhaseIndex = projectDetail ? PHASE_STEPS.indexOf(projectDetail.currentPhase) : 0;
   const isPlanning = projectDetail?.status === "PLANNING";
   const isEpisodes = projectDetail?.status === "EPISODES";
@@ -739,6 +747,11 @@ export default function StudioPage() {
                         {ep.status === "LOCKED" ? "已锁定" : ep.status === "REVISION" ? "修订中" : ep.status === "IN_REVIEW" ? "审核中" : "草稿"}
                       </span>
                       {ep.version > 1 && <span className="revisionBadge">v{ep.version}</span>}
+                      {ep.status === "LOCKED" && (
+                        <button className="iconBtnMini" onClick={(e) => { e.stopPropagation(); void unlockEpisode(ep.episodeNumber); }} title="解锁重新审查">
+                          <Lock size={12} />
+                        </button>
+                      )}
                     </div>
                   </button>
                 ))}

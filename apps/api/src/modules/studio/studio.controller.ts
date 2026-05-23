@@ -97,6 +97,11 @@ export class StudioController {
     return this.studioService.forceLock(id, Number(epNum));
   }
 
+  @Post("projects/:id/episodes/:epNum/unlock")
+  unlockEpisode(@Param("id") id: string, @Param("epNum") epNum: string) {
+    return this.studioService.unlockEpisode(id, Number(epNum));
+  }
+
   @Get("prompts")
   listPrompts() {
     return this.promptService.listPrompts();

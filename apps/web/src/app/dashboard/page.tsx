@@ -56,7 +56,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const scriptsRes = await fetch("http://127.0.0.1:4000/scripts");
+        const scriptsRes = await fetch("/api/scripts");
         if (scriptsRes.ok) {
           setScripts(await scriptsRes.json());
         }
@@ -64,7 +64,7 @@ export default function DashboardPage() {
         console.error("Failed to load scripts:", e);
       }
       try {
-        const creditsRes = await fetch("http://127.0.0.1:4000/credits/demo-user-1");
+        const creditsRes = await fetch("/api/credits/demo-user-1");
         if (creditsRes.ok) {
           const creditData = await creditsRes.json();
           setCredits({ userId: creditData.userId, balance: creditData.balance });

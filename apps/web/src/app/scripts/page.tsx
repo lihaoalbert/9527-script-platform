@@ -43,7 +43,7 @@ export default function ScriptsPage() {
     setLoading((l) => ({ ...l, list: true }));
     try {
       const res = await fetch(
-        `http://127.0.0.1:4000/scripts${query ? `?q=${encodeURIComponent(query)}` : ""}`
+        `/api/scripts${query ? `?q=${encodeURIComponent(query)}` : ""}`
       );
       if (res.ok) {
         const data: ScriptItem[] = await res.json();
@@ -62,7 +62,7 @@ export default function ScriptsPage() {
   async function loadPreview(scriptId: string) {
     setLoading((l) => ({ ...l, preview: true }));
     try {
-      const res = await fetch(`http://127.0.0.1:4000/scripts/${scriptId}/preview`);
+      const res = await fetch(`/api/scripts/${scriptId}/preview`);
       setPreview(await res.json());
     } catch (e) {
       console.error("Failed to load preview:", e);
@@ -74,7 +74,7 @@ export default function ScriptsPage() {
   async function handleLock(scriptId: string) {
     setLoading((l) => ({ ...l, lock: scriptId }));
     try {
-      await fetch(`http://127.0.0.1:4000/scripts/${scriptId}/lock`, {
+      await fetch(`/api/scripts/${scriptId}/lock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: "demo-buyer-1" }),

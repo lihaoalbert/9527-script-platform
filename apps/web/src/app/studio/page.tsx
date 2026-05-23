@@ -58,7 +58,7 @@ const PHASE_LABELS: Record<string, string> = {
 
 const PHASE_STEPS = ["STORY_KERNEL", "WORLD_BUILDING", "CHARACTERS", "EPISODE_OUTLINES", "PRODUCTION_NOTES"];
 
-const API = "http://127.0.0.1:4000";
+const API = "/api";
 
 export default function StudioPage() {
   // Project list

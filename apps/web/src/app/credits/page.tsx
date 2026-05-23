@@ -23,7 +23,7 @@ export default function CreditsPage() {
   useEffect(() => {
     async function loadCredits() {
       try {
-        const res = await fetch("http://127.0.0.1:4000/credits/demo-user-1");
+        const res = await fetch("/api/credits/demo-user-1");
         if (res.ok) {
           const data = await res.json();
           setAccount({ userId: data.userId, balance: data.balance });

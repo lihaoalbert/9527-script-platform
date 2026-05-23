@@ -64,6 +64,7 @@ export class ScriptsService {
         status: true,
         wordCount: true,
         aiScore: true,
+        authorId: true,
         createdAt: true,
         updatedAt: true
       }

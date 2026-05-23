@@ -162,7 +162,7 @@ export default function AdminPage() {
                   <span className="scriptTitle">{s.title}</span>
                   <span className="statusBadge">{statusLabels[s.status] ?? s.status}</span>
                   <span>{Math.round(s.wordCount / 1000)}k字</span>
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>{s.authorId.slice(0, 8)}...</span>
+                  <span style={{ fontSize: 11, color: "var(--muted)" }}>{s.authorId ? s.authorId.slice(0, 8) : "—"}...</span>
                 </div>
               ))}
               {scripts.length === 0 && (

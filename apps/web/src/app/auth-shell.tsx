@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Gauge, Sparkles, BookOpen, WalletCards, ShieldCheck, LogOut } from "lucide-react";
-import { useAuth } from "../auth-context";
+import { AuthProvider, useAuth } from "./auth-context";
 
+const PUBLIC_PATHS = ["/login"];
 const navItems = [
   { href: "/dashboard", icon: Gauge, label: "工作台" },
   { href: "/studio", icon: Sparkles, label: "AI创作" },
@@ -14,17 +15,22 @@ const navItems = [
   { href: "/admin", icon: ShieldCheck, label: "后台" },
 ];
 
-export default function SharedLayout({ children }: { children: React.ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, token, logout } = useAuth();
+  const isPublic = PUBLIC_PATHS.includes(pathname);
 
   useEffect(() => {
-    if (!token) {
+    if (!isPublic && !token) {
       router.push("/login");
     }
-  }, [token, router]);
+  }, [isPublic, token, router]);
 
+  // Login page renders without sidebar
+  if (isPublic) return <>{children}</>;
+
+  // Loading state while checking auth
   if (!token || !user) {
     return (
       <div style={{
@@ -48,14 +54,9 @@ export default function SharedLayout({ children }: { children: React.ReactNode }
         </div>
         <nav>
           {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={isActive ? "active" : ""}
-              >
+              <Link key={item.href} href={item.href} className={isActive ? "active" : ""}>
                 <item.icon size={18} />
                 {item.label}
               </Link>
@@ -82,5 +83,13 @@ export default function SharedLayout({ children }: { children: React.ReactNode }
       </aside>
       <section className="content">{children}</section>
     </div>
+  );
+}
+
+export function AuthShell({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <Shell>{children}</Shell>
+    </AuthProvider>
   );
 }

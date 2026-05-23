@@ -1,194 +1,191 @@
 "use client";
 
-import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Sparkles, BookOpen, WalletCards, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useAuth } from "../auth-context";
+import { authFetch } from "../auth-context";
+import { Sparkles, BookOpen, WalletCards, FolderOpen, Plus, ArrowRight, Clock } from "lucide-react";
+
+type ProjectSummary = {
+  id: string; name: string; genre: string | null; status: string;
+  currentPhase: string; episodeCount: number; updatedAt: string;
+};
 
 type ScriptItem = {
-  id: string;
-  title: string;
-  status: string;
-  wordCount: number;
-  aiScore?: number | null;
+  id: string; title: string; status: string; wordCount: number; aiScore?: number | null;
 };
 
-type CreditAccount = {
-  userId: string;
-  balance: number;
+const PHASE_LABELS: Record<string, string> = {
+  STORY_KERNEL: "故事内核", WORLD_BUILDING: "世界观构建", CHARACTERS: "人物塑造",
+  EPISODE_OUTLINES: "分集大纲", PRODUCTION_NOTES: "制作要点", EPISODE_GENERATION: "分集生成",
 };
-
-const creationSteps = [
-  { key: "brief", label: "设定输入", desc: "先定题材、角色与目标字数" },
-  { key: "outline", label: "大纲建议", desc: "AI 先出标题方向与情节骨架" },
-  { key: "draft", label: "草案生成", desc: "形成可编辑的正文草案与分集钩子" },
-  { key: "score", label: "评分润色", desc: "看冲突、逻辑、AI 率并继续改写" },
-];
-
-const quickActions = [
-  {
-    href: "/studio",
-    icon: Sparkles,
-    label: "AI 创作",
-    desc: "开始一个新的剧本创作",
-    color: "var(--accent)",
-  },
-  {
-    href: "/scripts",
-    icon: BookOpen,
-    label: "剧本库",
-    desc: "浏览和管理已有剧本",
-    color: "#b45309",
-  },
-  {
-    href: "/credits",
-    icon: WalletCards,
-    label: "积分管理",
-    desc: "查看余额和交易记录",
-    color: "#0f766e",
-  },
-];
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
-  const [credits, setCredits] = useState<CreditAccount | null>(null);
+  const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
+    async function load() {
       try {
-        const scriptsRes = await authFetch("/api/scripts");
-        if (scriptsRes.ok) {
-          setScripts(await scriptsRes.json());
-        }
-      } catch (e) {
-        console.error("Failed to load scripts:", e);
-      }
-      try {
-        const creditsRes = await authFetch("/api/credits");
-        if (creditsRes.ok) {
-          const creditData = await creditsRes.json();
-          setCredits({ userId: creditData.userId, balance: creditData.balance });
-        }
-      } catch (e) {
-        console.error("Failed to load credits:", e);
-      }
+        const [pRes, sRes, cRes] = await Promise.all([
+          authFetch("/api/studio/projects"),
+          authFetch("/api/scripts"),
+          authFetch("/api/credits"),
+        ]);
+        if (pRes.ok) setProjects(await pRes.json());
+        if (sRes.ok) setScripts(await sRes.json());
+        if (cRes.ok) setCredits((await cRes.json()).balance);
+      } catch { /* ignore */ }
       setLoading(false);
     }
-    void loadData();
+    void load();
   }, []);
 
-  const availableScripts = scripts.filter((s) => s.status === "PUBLISHED");
+  const activeProjects = projects.filter((p) => p.status !== "ARCHIVED");
+  const completedProjects = projects.filter((p) => p.status === "COMPLETED");
 
   return (
     <div>
       <header className="topbar">
         <div>
-          <span className="eyebrow">9527剧本平台 · 工作台</span>
-          <h1>欢迎回来，创作者</h1>
-          <p>从这里开始你的剧本创作之旅</p>
+          <h1>{user ? `${user.name}的工作台` : "工作台"}</h1>
+          <p>{user?.email}</p>
         </div>
       </header>
 
-      <section className="heroGrid">
-        <article className="heroCard">
-          <div className="heroCopy">
-            <span className="eyebrow">AI 创作流程</span>
-            <h2>四步完成剧本创作</h2>
-            <p>从设定输入到 AI 评分，每一步都清晰可控。</p>
-          </div>
-          <div className="heroFlow">
-            {creationSteps.map((step, index) => (
-              <div className="flowItem active" key={step.key}>
-                <strong>0{index + 1}</strong>
-                <span>{step.label}</span>
-              </div>
-            ))}
-          </div>
+      {/* Stats */}
+      <div className="metrics">
+        <article>
+          <strong>{loading ? "..." : activeProjects.length}</strong>
+          <span>进行中的项目</span>
         </article>
+        <article>
+          <strong>{loading ? "..." : completedProjects.length}</strong>
+          <span>已完成项目</span>
+        </article>
+        <article>
+          <strong>{loading ? "..." : scripts.length}</strong>
+          <span>剧本库</span>
+        </article>
+        <article>
+          <strong>{loading ? "..." : credits ?? 0}</strong>
+          <span>当前积分</span>
+        </article>
+      </div>
 
-        <div className="metrics">
-          <article>
-            <strong>{scripts.length}</strong>
-            <span>剧本总量</span>
-          </article>
-          <article>
-            <strong>{availableScripts.length}</strong>
-            <span>可锁定剧本</span>
-          </article>
-          <article>
-            <strong>18000</strong>
-            <span>目标字数</span>
-          </article>
-          <article>
-            <strong>{loading ? "..." : credits?.balance ?? 0}</strong>
-            <span>当前积分</span>
-          </article>
-        </div>
-      </section>
-
-      <section>
-        <div className="sectionHead">
-          <div>
-            <span className="eyebrow">快捷入口</span>
-            <h2>快速开始</h2>
-          </div>
-        </div>
-        <div className="quickActions">
-          {quickActions.map((action) => (
-            <Link key={action.href} href={action.href} className="actionCard">
-              <div
-                className="actionIcon"
-                style={{ background: action.color + "20", color: action.color }}
-              >
-                <action.icon size={24} />
-              </div>
-              <div className="actionText">
-                <strong>{action.label}</strong>
-                <p>{action.desc}</p>
-              </div>
-              <ArrowRight size={20} className="actionArrow" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
+      {/* Quick actions */}
       <section style={{ marginTop: 24 }}>
         <div className="sectionHead">
-          <div>
-            <span className="eyebrow">最近活动</span>
-            <h2>创作状态</h2>
-          </div>
+          <h2>快速开始</h2>
         </div>
-        {scripts.length > 0 ? (
+        <div className="quickActions">
+          <Link href="/studio" className="actionCard">
+            <div className="actionIcon" style={{ background: "var(--accent)" + "20", color: "var(--accent)" }}>
+              <Plus size={24} />
+            </div>
+            <div className="actionText">
+              <strong>新建项目</strong>
+              <p>在 Studio 中开始新的剧本创作</p>
+            </div>
+            <ArrowRight size={20} className="actionArrow" />
+          </Link>
+          <Link href="/scripts" className="actionCard">
+            <div className="actionIcon" style={{ background: "#b4530920", color: "#b45309" }}>
+              <BookOpen size={24} />
+            </div>
+            <div className="actionText">
+              <strong>剧本库</strong>
+              <p>浏览和管理已提交的剧本</p>
+            </div>
+            <ArrowRight size={20} className="actionArrow" />
+          </Link>
+          <Link href="/credits" className="actionCard">
+            <div className="actionIcon" style={{ background: "#0f766e20", color: "#0f766e" }}>
+              <WalletCards size={24} />
+            </div>
+            <div className="actionText">
+              <strong>积分管理</strong>
+              <p>查看余额和交易记录</p>
+            </div>
+            <ArrowRight size={20} className="actionArrow" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Recent projects */}
+      <section style={{ marginTop: 28 }}>
+        <div className="sectionHead">
+          <h2>最近项目</h2>
+          <Link href="/studio" className="secondaryBtn" style={{ textDecoration: "none", fontSize: 13 }}>
+            全部 <ArrowRight size={14} />
+          </Link>
+        </div>
+        {activeProjects.length > 0 ? (
           <div className="recentList">
-            {scripts.slice(0, 5).map((script) => (
-              <Link
-                key={script.id}
-                href={`/scripts?id=${script.id}`}
-                className="recentItem"
-              >
+            {activeProjects.slice(0, 5).map((p) => (
+              <Link key={p.id} href={`/studio`} className="recentItem"
+                onClick={(e) => { e.preventDefault(); window.location.href = "/studio"; }}>
                 <div>
-                  <strong>{script.title}</strong>
+                  <strong>{p.name}</strong>
                   <p>
-                    {Math.max(1, Math.round(script.wordCount / 1000))}k字 · AI评分{" "}
-                    {script.aiScore ?? "--"}
+                    <span style={{ marginRight: 8 }}>
+                      {p.status === "PLANNING" ? "规划中" : p.status === "EPISODES" ? "分集生成中" : p.status}
+                    </span>
+                    <span>{PHASE_LABELS[p.currentPhase] ?? p.currentPhase}</span>
+                    {p.episodeCount > 0 && <span> · {p.episodeCount}集</span>}
                   </p>
                 </div>
-                <span className={script.status === "LOCKED" ? "tag locked" : "tag"}>
-                  {script.status === "PUBLISHED"
-                    ? "可锁定"
-                    : script.status === "LOCKED"
-                    ? "已锁定"
-                    : script.status}
+                <span className={p.status === "EPISODES" ? "tag locked" : "tag"}>
+                  {p.status === "PLANNING" ? "规划" : p.status === "EPISODES" ? "创作" : p.status}
                 </span>
               </Link>
             ))}
           </div>
         ) : (
           <div className="emptyState">
-            <BookOpen size={18} />
-            暂无剧本，开始创作你的第一部作品吧
+            <FolderOpen size={24} />
+            <div>
+              <p>还没有项目</p>
+              <Link href="/studio" style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>
+                去 Studio 创建第一个项目
+              </Link>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Recent scripts */}
+      <section style={{ marginTop: 28 }}>
+        <div className="sectionHead">
+          <h2>剧本库</h2>
+          <Link href="/scripts" className="secondaryBtn" style={{ textDecoration: "none", fontSize: 13 }}>
+            全部 <ArrowRight size={14} />
+          </Link>
+        </div>
+        {scripts.length > 0 ? (
+          <div className="recentList">
+            {scripts.slice(0, 5).map((s) => (
+              <Link key={s.id} href={`/scripts?id=${s.id}`} className="recentItem">
+                <div>
+                  <strong>{s.title}</strong>
+                  <p>
+                    {Math.max(1, Math.round(s.wordCount / 1000))}k字
+                    {s.aiScore && <span> · AI评分 {s.aiScore}</span>}
+                  </p>
+                </div>
+                <span className={s.status === "LOCKED" ? "tag locked" : "tag"}>
+                  {s.status === "PUBLISHED" ? "可锁定" : s.status === "LOCKED" ? "已锁定" : s.status}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="emptyState">
+            <BookOpen size={24} />
+            <p>暂无剧本，项目完成后可提交到剧本库</p>
           </div>
         )}
       </section>

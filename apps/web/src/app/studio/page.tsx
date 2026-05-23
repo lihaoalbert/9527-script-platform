@@ -405,24 +405,6 @@ export default function StudioPage() {
           </div>
         )}
 
-        {projectDetail && isEpisodes && (
-          <div className="phaseProgress">
-            <div className="phaseLabel">分集进度</div>
-            <div className="episodeMiniList">
-              {projectDetail.episodes.map((ep) => (
-                <button
-                  key={ep.episodeNumber}
-                  className={`episodeMiniItem ${ep.status === "LOCKED" ? "locked" : ""} ${selectedEpisode === ep.episodeNumber ? "active" : ""}`}
-                  onClick={() => { setSelectedEpisode(ep.episodeNumber); setRightView("episode"); }}
-                >
-                  <span>第{ep.episodeNumber}集</span>
-                  {ep.status === "LOCKED" ? <Lock size={12} /> : <LoaderCircle size={12} className="spin" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="leftFooter">
           <button className="configBtn" onClick={() => { loadPrompts(); setRightView("prompts"); }}>
             <Settings size={16} />
@@ -607,7 +589,14 @@ export default function StudioPage() {
           <div className="planView">
             <div className="rightHeader">
               <h2>项目规划书</h2>
-              {projectDetail.plan.lockedAt && <span className="lockedBadge"><Lock size={12} /> 已锁定</span>}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {projectDetail.plan.lockedAt && <span className="lockedBadge"><Lock size={12} /> 已锁定</span>}
+                {isEpisodes && (
+                  <button className="viewPlanToggle" onClick={() => setRightView("episode")}>
+                    <FileText size={14} /> 分集列表
+                  </button>
+                )}
+              </div>
             </div>
             <div className="planSections">
               <PlanSection title="故事内核" data={projectDetail.plan.storyKernel} />
@@ -623,13 +612,16 @@ export default function StudioPage() {
               <h2>
                 {selectedEpisode ? `第${selectedEpisode}集` : "分集列表"}
               </h2>
+              <button className="viewPlanToggle" onClick={() => setRightView("plan")}>
+                <FileText size={14} /> 规划书
+              </button>
             </div>
             {!selectedEpisode ? (
               <div className="episodeList">
                 {projectDetail.episodes.map((ep) => (
                   <button
                     key={ep.episodeNumber}
-                    className={`episodeItem ${ep.status === "LOCKED" ? "locked" : ""}`}
+                    className={`episodeItem ${ep.status === "LOCKED" ? "locked" : ""} ${ep.status !== "LOCKED" ? "inProgress" : ""}`}
                     onClick={() => setSelectedEpisode(ep.episodeNumber)}
                   >
                     <div className="episodeItemLeft">

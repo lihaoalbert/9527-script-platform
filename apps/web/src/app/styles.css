@@ -2327,6 +2327,7 @@ li {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .promptList {
@@ -2334,13 +2335,15 @@ li {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  padding-bottom: 12px;
 }
 
 .promptItem {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .promptItem.editing {
@@ -2399,6 +2402,8 @@ li {
   padding: 12px;
   border-top: 1px solid var(--line);
   background: #fff;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
 .promptEditor {
@@ -2418,14 +2423,6 @@ li {
 .promptEditor:focus {
   border-color: var(--accent);
   outline: none;
-}
-
-.promptItemBody {
-  padding: 12px;
-  border-top: 1px solid var(--line);
-  background: #fff;
-  max-height: 500px;
-  overflow-y: auto;
 }
 
 .promptActions {

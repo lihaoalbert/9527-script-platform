@@ -352,14 +352,17 @@ export class AutoModeService {
         where: { projectId_episodeNumber: { projectId, episodeNumber: epNum } },
       });
       if (episode) {
-        const scoreRecord = await this.prisma.episodeScore.create({
-          data: {
-            episodeId: episode.id,
-            conflict: scores.conflict ?? 0, logic: scores.logic ?? 0,
-            pacing: scores.pacing ?? 0, characterConsistency: scores.characterConsistency ?? 0,
-            commercialPotential: scores.commercialPotential ?? 0, originality: scores.originality ?? 0,
-            total, suggestions: (parsed.data?.suggestions as string[]) ?? [],
-          },
+        const scoreData = {
+          episodeId: episode.id,
+          conflict: scores.conflict ?? 0, logic: scores.logic ?? 0,
+          pacing: scores.pacing ?? 0, characterConsistency: scores.characterConsistency ?? 0,
+          commercialPotential: scores.commercialPotential ?? 0, originality: scores.originality ?? 0,
+          total, suggestions: (parsed.data?.suggestions as string[]) ?? [],
+        };
+        const scoreRecord = await this.prisma.episodeScore.upsert({
+          where: { episodeId: episode.id },
+          create: scoreData,
+          update: scoreData,
         });
         await this.prisma.projectEpisode.update({
           where: { id: episode.id },

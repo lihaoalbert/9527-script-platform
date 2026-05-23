@@ -2,7 +2,7 @@
 
 import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
-import { Users, BookOpen, Bot, Key, Plus, Trash2 } from "lucide-react";
+import { Users, BookOpen, Bot, Key, Plus, Trash2, Settings } from "lucide-react";
 
 type Script = {
   id: string; title: string; status: string; authorId: string; wordCount: number;
@@ -36,6 +36,8 @@ export default function AdminPage() {
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
   const [showNewKey, setShowNewKey] = useState(false);
   const [newKey, setNewKey] = useState({ name: "", provider: "deepseek", apiKey: "", model: "deepseek-v4-pro", persona: "both" });
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editKeyData, setEditKeyData] = useState({ name: "", provider: "deepseek", apiKey: "", model: "", persona: "both" });
 
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -114,6 +116,26 @@ export default function AdminPage() {
       const res = await authFetch("/api/admin/apikeys");
       if (res.ok) setApiKeys(await res.json());
     } catch { /* ignore */ }
+  }
+
+  async function startEditKey(k: ApiKeyRow) {
+    setEditingKey(k.id);
+    setEditKeyData({ name: k.name, provider: k.provider, apiKey: k.apiKey, model: k.model, persona: k.persona });
+  }
+
+  async function saveEditKey() {
+    if (!editingKey) return;
+    try {
+      await authFetch(`/api/admin/apikeys/${editingKey}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editKeyData),
+      });
+      setEditingKey(null);
+      setMessage("API Key 已更新");
+      const res = await authFetch("/api/admin/apikeys");
+      if (res.ok) setApiKeys(await res.json());
+    } catch { setMessage("更新失败"); }
   }
 
   async function deleteApiKey(id: string) {
@@ -318,12 +340,37 @@ export default function AdminPage() {
                     </span>
                   </span>
                   <span>
+                    <button className="iconBtn" onClick={() => startEditKey(k)} title="编辑">
+                      <Settings size={14} />
+                    </button>
                     <button className="iconBtn" onClick={() => { void deleteApiKey(k.id); }} title="删除">
                       <Trash2 size={14} />
                     </button>
                   </span>
                 </div>
               ))}
+              {editingKey && (
+                <div className="panel" style={{ marginTop: 12, padding: 16 }}>
+                  <h4 style={{ marginBottom: 12 }}>编辑 API Key</h4>
+                  <div className="formGrid">
+                    <label>名称<input value={editKeyData.name} onChange={(e) => setEditKeyData((d) => ({ ...d, name: e.target.value }))} /></label>
+                    <label>Provider<input value={editKeyData.provider} onChange={(e) => setEditKeyData((d) => ({ ...d, provider: e.target.value }))} /></label>
+                    <label className="fullSpan">API Key<input value={editKeyData.apiKey} onChange={(e) => setEditKeyData((d) => ({ ...d, apiKey: e.target.value }))} /></label>
+                    <label>模型<input value={editKeyData.model} onChange={(e) => setEditKeyData((d) => ({ ...d, model: e.target.value }))} /></label>
+                    <label>绑定角色
+                      <select value={editKeyData.persona} onChange={(e) => setEditKeyData((d) => ({ ...d, persona: e.target.value }))}>
+                        <option value="both">编剧+审核官</option>
+                        <option value="writer">仅编剧小Q</option>
+                        <option value="reviewer">仅审核官</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="actionRow">
+                    <button className="secondaryBtn" onClick={() => setEditingKey(null)}>取消</button>
+                    <button onClick={() => { void saveEditKey(); }}>保存修改</button>
+                  </div>
+                </div>
+              )}
               {apiKeys.length === 0 && (
                 <div className="tableRow" style={{ justifyContent: "center", padding: 24 }}>
                   <span style={{ color: "var(--muted)" }}>暂无 API Key，默认使用 .env 中的配置</span>

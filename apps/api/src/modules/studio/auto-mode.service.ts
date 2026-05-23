@@ -248,7 +248,7 @@ export class AutoModeService {
     });
 
     const writerKey = await this.apiKeyService.getForPersona("writer");
-      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model);
+      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model, writerKey?.provider);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -280,7 +280,7 @@ export class AutoModeService {
     });
 
     const writerKey = await this.apiKeyService.getForPersona("writer");
-      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model);
+      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model, writerKey?.provider);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -318,7 +318,7 @@ export class AutoModeService {
     });
 
     const reviewerKey = await this.apiKeyService.getForPersona("reviewer");
-    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey?.apiKey, reviewerKey?.model);
+    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey?.apiKey, reviewerKey?.model, reviewerKey?.provider);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -339,7 +339,7 @@ export class AutoModeService {
     });
 
     const reviewerKey2 = await this.apiKeyService.getForPersona("reviewer");
-    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey2?.apiKey, reviewerKey2?.model);
+    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey2?.apiKey, reviewerKey2?.model, reviewerKey2?.provider);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({

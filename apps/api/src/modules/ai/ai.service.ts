@@ -1,44 +1,57 @@
 import { Injectable } from "@nestjs/common";
 
+type AiProvider = "deepseek" | "openai" | "minimax" | string;
+
+const PROVIDER_URLS: Record<string, string> = {
+  deepseek: "https://api.deepseek.com/v1/chat/completions",
+  openai: "https://api.openai.com/v1/chat/completions",
+  minimax: "https://api.minimax.chat/v1/text/chatcompletion_v2",
+};
+
 @Injectable()
 export class AiService {
   private readonly apiKey: string;
   private readonly model: string;
-  private readonly baseUrl = "https://api.deepseek.com/v1/chat/completions";
 
   constructor() {
     this.apiKey = process.env.AI_API_KEY ?? "";
     this.model = process.env.AI_MODEL ?? "deepseek-v4-pro";
   }
 
-  async chatRaw(messages: Array<{ role: string; content: string }>, temperature = 0.7, jsonMode = false, overrideKey?: string, overrideModel?: string): Promise<string> {
+  async chatRaw(
+    messages: Array<{ role: string; content: string }>,
+    temperature = 0.7,
+    jsonMode = false,
+    overrideKey?: string,
+    overrideModel?: string,
+    overrideProvider?: string,
+  ): Promise<string> {
     const key = overrideKey || this.apiKey;
     const mdl = overrideModel || this.model;
+    const provider = overrideProvider || process.env.AI_PROVIDER || "deepseek";
+    const baseUrl = PROVIDER_URLS[provider] || PROVIDER_URLS.deepseek;
+
     if (!key) {
       throw new Error("AI_API_KEY is not configured");
     }
 
-    const body: Record<string, unknown> = {
-      model: mdl,
-      messages,
-      temperature,
-    };
+    const body: Record<string, unknown> = { model: mdl, messages, temperature };
     if (jsonMode) {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(this.baseUrl, {
+    const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`
+        Authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Deepseek API error: ${response.status} - ${error}`);
+      throw new Error(`${provider} API error: ${response.status} - ${error.slice(0, 200)}`);
     }
 
     const data = (await response.json()) as { choices?: Array<{ message: { content: string } }> };
@@ -46,7 +59,7 @@ export class AiService {
   }
 
   async createOutline(input: { genre: string; premise: string }) {
-    const provider = this.apiKey ? "deepseek" : "mock";
+    const provider = this.apiKey ? (process.env.AI_PROVIDER || "deepseek") : "mock";
 
     if (!this.apiKey) {
       return {
@@ -103,7 +116,7 @@ export class AiService {
     const targetWords = input.targetWords ?? 18000;
     const protagonist = input.protagonist?.trim() || "女主";
     const tone = input.tone?.trim() || "强冲突、快节奏";
-    const provider = this.apiKey ? "deepseek" : "mock";
+    const provider = this.apiKey ? (process.env.AI_PROVIDER || "deepseek") : "mock";
 
     if (!this.apiKey) {
       const title = `${input.genre}《${protagonist}反转计划》`;
@@ -176,10 +189,7 @@ export class AiService {
       const aiLikeSignals = ["首先", "其次", "综上", "命运的齿轮"].filter((word) => content.includes(word)).length;
       return {
         total: Math.max(60, 88 - aiLikeSignals * 4),
-        conflict: 86,
-        logic: 82,
-        pacing: 84,
-        commercialPotential: 89,
+        conflict: 86, logic: 82, pacing: 84, commercialPotential: 89,
         aiRate: Math.min(95, 20 + aiLikeSignals * 12),
         suggestions: [
           "前三集应更快给出主角的明确目标。",
@@ -223,10 +233,7 @@ export class AiService {
       const aiLikeSignals = ["首先", "其次", "综上", "命运的齿轮"].filter((word) => content.includes(word)).length;
       return {
         total: Math.max(60, 88 - aiLikeSignals * 4),
-        conflict: 86,
-        logic: 82,
-        pacing: 84,
-        commercialPotential: 89,
+        conflict: 86, logic: 82, pacing: 84, commercialPotential: 89,
         aiRate: Math.min(95, 20 + aiLikeSignals * 12),
         suggestions: [
           "前三集应更快给出主角的明确目标。",
@@ -238,7 +245,7 @@ export class AiService {
   }
 
   async reviewScript(content: string, question?: string) {
-    const provider = this.apiKey ? "deepseek" : "mock";
+    const provider = this.apiKey ? (process.env.AI_PROVIDER || "deepseek") : "mock";
 
     if (!this.apiKey) {
       return {
@@ -272,9 +279,6 @@ export class AiService {
       { role: "user", content: "请审核这个剧本" }
     ], 0.5);
 
-    return {
-      provider,
-      review: result,
-    };
+    return { provider, review: result };
   }
 }

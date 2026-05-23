@@ -31,7 +31,7 @@ export class ApiKeyService {
     return { deleted: true };
   }
 
-  async getForPersona(persona: "writer" | "reviewer"): Promise<{ apiKey: string; model: string } | null> {
+  async getForPersona(persona: "writer" | "reviewer"): Promise<{ apiKey: string; model: string; provider: string } | null> {
     if (!this.prisma.enabled) return null;
 
     const keys = await this.prisma.apiKey.findMany({
@@ -39,6 +39,6 @@ export class ApiKeyService {
       orderBy: { updatedAt: "desc" },
     });
     if (keys.length === 0) return null;
-    return { apiKey: keys[0].apiKey, model: keys[0].model };
+    return { apiKey: keys[0].apiKey, model: keys[0].model, provider: keys[0].provider };
   }
 }

@@ -95,8 +95,8 @@ export class AutoModeService {
       if (state.abort) break;
 
       const phase = PLANNING_PHASES[i];
-      const result = await this.iterationLoop(projectId, state, phase, () =>
-        this.runWriterTurn(projectId, phase),
+      const result = await this.iterationLoop(projectId, state, phase, (attempt) =>
+        this.runWriterTurn(projectId, phase, attempt),
         () => this.runReviewerTurn(projectId, phase),
         PHASE_LABELS[phase],
       );
@@ -145,7 +145,7 @@ export class AutoModeService {
         `自动模式：开始生成第${epNum}集（目标${project.episodeTargetWords}字）。`);
 
       const result = await this.iterationLoop(projectId, state, "EPISODE_GENERATION",
-        () => this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords),
+        (attempt) => this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords, attempt),
         () => this.runReviewerEpisodeTurn(projectId, epNum),
         `第${epNum}集`,
       );
@@ -174,7 +174,7 @@ export class AutoModeService {
     projectId: string,
     state: { abort: boolean },
     phase: ProjectPhase,
-    writerFn: () => Promise<void>,
+    writerFn: (attempt: number) => Promise<void>,
     reviewerFn: () => Promise<number>,
     label: string,
   ): Promise<"passed" | "max_attempts"> {
@@ -184,7 +184,7 @@ export class AutoModeService {
       if (state.abort) return "max_attempts";
 
       // Writer turn
-      const writerOk = await this.safeCall(`writer-${label}`, async () => { await writerFn(); return true; }, projectId, state);
+      const writerOk = await this.safeCall(`writer-${label}`, async () => { await writerFn(attempt); return true; }, projectId, state);
       if (writerOk === null || state.abort) return "max_attempts";
       await this.delay(2000 + Math.random() * 1000);
       if (state.abort) return "max_attempts";
@@ -240,12 +240,14 @@ export class AutoModeService {
 
   // ─── Writer Turns ───
 
-  private async runWriterTurn(projectId: string, phase: ProjectPhase) {
+  private async runWriterTurn(projectId: string, phase: ProjectPhase, attempt: number) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", phase);
-    messages.push({
-      role: "user",
-      content: `【自动模式】请为【${PHASE_LABELS[phase]}】直接生成方案，输出JSON：{"content":"简介","data":{"${FIELD_MAP[phase] ?? "data"}":{...}}}`,
-    });
+
+    const instruction = attempt === 1
+      ? `【自动模式-第1轮】请为【${PHASE_LABELS[phase]}】直接生成方案，输出JSON：{"content":"简介","data":{"${FIELD_MAP[phase] ?? "data"}":{...}}}`
+      : `【自动模式-修订第${attempt}轮】审核官对你上一轮的方案提出了修改意见（见上一条审核官的消息），请认真参考审核官的具体建议，逐条回应并修改方案，然后重新输出。输出JSON格式相同。`;
+
+    messages.push({ role: "user", content: instruction });
 
     const writerKey = await this.apiKeyService.getForPersona("writer");
       const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model, writerKey?.provider);
@@ -272,12 +274,14 @@ export class AutoModeService {
     }
   }
 
-  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number) {
+  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number, attempt: number) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", "EPISODE_GENERATION");
-    messages.push({
-      role: "user",
-      content: `【自动模式】生成第${epNum}集剧本（目标${targetWords}字），严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`,
-    });
+
+    const instruction = attempt === 1
+      ? `【自动模式-第1轮】生成第${epNum}集剧本（目标${targetWords}字），严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`
+      : `【自动模式-修订第${attempt}轮】审核官对第${epNum}集提出了修改意见（见上一条审核官的消息），请认真参考审核官的具体建议，逐条回应并修改剧本，然后重新输出。输出JSON格式相同。`;
+
+    messages.push({ role: "user", content: instruction });
 
     const writerKey = await this.apiKeyService.getForPersona("writer");
       const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model, writerKey?.provider);

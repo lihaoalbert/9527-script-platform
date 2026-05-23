@@ -25,6 +25,11 @@ export class StudioController {
     return this.studioService.listProjects(ownerId, status);
   }
 
+  @Get("projects/:id")
+  getProject(@Param("id") id: string) {
+    return this.studioService.getProject(id);
+  }
+
   @Patch("projects/:id")
   updateProject(@Param("id") id: string, @Body() body: { name?: string; genre?: string }) {
     return this.studioService.updateProject(id, body);

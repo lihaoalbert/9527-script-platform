@@ -318,11 +318,8 @@ export class AutoModeService {
     });
 
     const reviewerKey = await this.apiKeyService.getForPersona("reviewer");
-    console.log("AUTO-REVIEWER key:", reviewerKey?.provider, reviewerKey?.model, reviewerKey?.apiKey?.slice(0, 15));
     const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey?.apiKey, reviewerKey?.model, reviewerKey?.provider);
-    console.log("AUTO-REVIEWER raw response length:", raw.length, "first 300:", raw.slice(0, 300));
     const parsed = this.parseJson(raw);
-    console.log("AUTO-REVIEWER parsed content:", parsed.content?.slice(0, 100), "data keys:", Object.keys(parsed.data || {}), "total:", (parsed.data as any)?.total);
 
     await this.prisma.conversationMessage.create({
       data: {

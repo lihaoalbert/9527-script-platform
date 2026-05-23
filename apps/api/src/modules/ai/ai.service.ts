@@ -60,11 +60,7 @@ export class AiService {
     }
 
     const data = (await response.json()) as { choices?: Array<{ message: { content: string } }> };
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      console.log("chatRaw empty content. Full response:", JSON.stringify(data).slice(0, 500));
-    }
-    return content ?? "";
+    return data.choices?.[0]?.message?.content ?? "";
   }
 
   async createOutline(input: { genre: string; premise: string }) {

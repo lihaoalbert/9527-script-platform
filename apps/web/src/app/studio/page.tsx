@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
   User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
+  Download, Upload, Trash2, EyeOff,
 } from "lucide-react";
 
 // ─── Types ───
@@ -276,6 +277,53 @@ export default function StudioPage() {
     })();
   }, [activeProjectId]);
 
+  function downloadProject() {
+    if (!activeProjectId) return;
+    window.open(`${API}/studio/projects/${activeProjectId}/download`, "_blank");
+  }
+
+  async function submitToLibrary() {
+    if (!activeProjectId) return;
+    try {
+      const res = await fetch(`${API}/studio/projects/${activeProjectId}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorId: "demo-user-1" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`已提交到剧本库！剧本ID: ${data.scriptId}`);
+        await selectProject(activeProjectId);
+        await loadProjects();
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  async function archiveProject(id: string) {
+    try {
+      await fetch(`${API}/studio/projects/${id}`, { method: "DELETE" });
+      if (activeProjectId === id) {
+        setActiveProjectId(null);
+        setProjectDetail(null);
+        setMessages([]);
+      }
+      await loadProjects();
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteProjectPermanently(id: string) {
+    if (!confirm("确定永久删除此项目？此操作不可撤销。")) return;
+    try {
+      await fetch(`${API}/studio/projects/${id}/permanent`, { method: "DELETE" });
+      if (activeProjectId === id) {
+        setActiveProjectId(null);
+        setProjectDetail(null);
+        setMessages([]);
+      }
+      await loadProjects();
+    } catch (e) { console.error(e); }
+  }
+
   async function forceLockEpisode(epNum: number) {
     if (!activeProjectId) return;
     try {
@@ -308,20 +356,26 @@ export default function StudioPage() {
         ) : (
           <div className="projectList">
             {projects.map((p) => (
-              <button
-                key={p.id}
-                className={`projectListItem ${p.id === activeProjectId ? "active" : ""}`}
-                onClick={() => { void selectProject(p.id); }}
-              >
-                <div className="projectItemTop">
-                  <span className="projectItemName">{p.name}</span>
-                  <span className={`projectStatus status${p.status}`}>{p.status === "PLANNING" ? "规划中" : p.status === "EPISODES" ? "生成中" : p.status === "COMPLETED" ? "已完成" : "已归档"}</span>
+              <div key={p.id} className={`projectListItem ${p.id === activeProjectId ? "active" : ""}`}>
+                <div className="projectItemClickable" onClick={() => { void selectProject(p.id); }}>
+                  <div className="projectItemTop">
+                    <span className="projectItemName">{p.name}</span>
+                    <span className={`projectStatus status${p.status}`}>{p.status === "PLANNING" ? "规划中" : p.status === "EPISODES" ? "生成中" : p.status === "COMPLETED" ? "已完成" : "已归档"}</span>
+                  </div>
+                  <div className="projectItemMeta">
+                    <span>{PHASE_LABELS[p.currentPhase] ?? p.currentPhase}</span>
+                    {p.episodeCount > 0 && <span>· {p.episodeCount}集</span>}
+                  </div>
                 </div>
-                <div className="projectItemMeta">
-                  <span>{PHASE_LABELS[p.currentPhase] ?? p.currentPhase}</span>
-                  {p.episodeCount > 0 && <span>· {p.episodeCount}集</span>}
+                <div className="projectItemActions">
+                  <button className="iconBtnMini" onClick={(e) => { e.stopPropagation(); void archiveProject(p.id); }} title="归档">
+                    <EyeOff size={12} />
+                  </button>
+                  <button className="iconBtnMini danger" onClick={(e) => { e.stopPropagation(); void deleteProjectPermanently(p.id); }} title="删除">
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -414,6 +468,16 @@ export default function StudioPage() {
               ) : (
                 <><Sparkles size={14} /> 自动</>
               )}
+            </button>
+          )}
+          {projectDetail && (
+            <button className="toolbarBtn" onClick={downloadProject} title="下载 Markdown">
+              <Download size={14} />
+            </button>
+          )}
+          {projectDetail && projectDetail.episodes.some((e) => e.status === "LOCKED") && (
+            <button className="toolbarBtn submit" onClick={() => { void submitToLibrary(); }} title="提交到剧本库">
+              <Upload size={14} /> 提交
             </button>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from "@nestjs/common";
 import { AutoModeService } from "./auto-mode.service";
 import { PromptService } from "./prompt.service";
 import { StudioService } from "./studio.service";
@@ -116,5 +116,23 @@ export class StudioController {
   @Get("projects/:id/auto-mode/status")
   autoModeStatus(@Param("id") id: string) {
     return { running: this.autoModeService.isRunning(id), projectId: id };
+  }
+
+  @Get("projects/:id/download")
+  async downloadProject(@Param("id") id: string, @Res() res: any) {
+    const { filename, markdown } = await this.studioService.generateMarkdown(id);
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(markdown);
+  }
+
+  @Post("projects/:id/submit")
+  submitToLibrary(@Param("id") id: string, @Body() body: { authorId: string }) {
+    return this.studioService.submitToLibrary(id, body.authorId);
+  }
+
+  @Delete("projects/:id/permanent")
+  permanentDelete(@Param("id") id: string) {
+    return this.studioService.permanentDelete(id);
   }
 }

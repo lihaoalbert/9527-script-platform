@@ -1513,15 +1513,13 @@ li {
 
 .projectListItem {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 8px;
   width: 100%;
   padding: 10px 12px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
   color: var(--ink);
   transition: background 0.15s, border-color 0.15s;
 }
@@ -1706,6 +1704,71 @@ li {
   border-color: #d97706;
   color: #92400e;
 }
+
+/* Toolbar buttons (download, submit) */
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background: #f4f3ef;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  min-height: auto;
+  transition: all 0.15s;
+}
+
+.toolbarBtn:hover { background: #e5e4df; color: var(--ink); }
+
+.toolbarBtn.submit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.toolbarBtn.submit:hover { opacity: 0.9; }
+
+/* Project list item actions */
+.projectItemClickable {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.projectItemActions {
+  display: none;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.projectListItem:hover .projectItemActions { display: flex; }
+
+.projectListItem.active .projectItemActions { display: flex; }
+
+.iconBtnMini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  min-height: auto;
+}
+
+.iconBtnMini:hover { background: #e5e4df; color: var(--ink); }
+
+.iconBtnMini.danger:hover { background: #fef2f2; color: #dc2626; }
 
 /* ─── Message Decision Badge ─── */
 

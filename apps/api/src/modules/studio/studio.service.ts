@@ -508,4 +508,128 @@ export class StudioService {
 
     return { locked: true };
   }
+
+  // ─── Download & Submit ───
+
+  async generateMarkdown(projectId: string): Promise<{ filename: string; markdown: string }> {
+    const project = await this.getProject(projectId);
+    const plan = project.plan;
+    const episodes = project.episodes ?? [];
+    const lockedEpisodes = episodes.filter((e) => e.status === "LOCKED");
+
+    const lines: string[] = [];
+
+    lines.push(`# ${project.name}`);
+    if (project.genre) lines.push(`\n**题材**：${project.genre}`);
+    lines.push(`\n**状态**：${project.status === "COMPLETED" ? "已完成" : "创作中"}`);
+    lines.push(`**分集**：${lockedEpisodes.length} 集已锁定\n`);
+    lines.push("---\n");
+
+    // Plan section
+    if (plan) {
+      const storyKernel = plan.storyKernel as Record<string, unknown> | undefined;
+      const worldBuilding = plan.worldBuilding as Record<string, unknown> | undefined;
+      const characters = plan.characters as Array<Record<string, unknown>> | undefined;
+      const outlines = plan.episodeOutlines as Array<Record<string, unknown>> | undefined;
+      const notes = plan.productionNotes as Record<string, unknown> | undefined;
+
+      if (storyKernel && Object.keys(storyKernel).length > 0) {
+        lines.push("## 故事内核\n");
+        if (storyKernel.logline) lines.push(`**Logline**：${storyKernel.logline}\n`);
+        if (storyKernel.theme) lines.push(`**主题**：${storyKernel.theme}\n`);
+        if (storyKernel.chosenPath) lines.push(`**创作路径**：${storyKernel.chosenPath}\n`);
+        if (storyKernel.externalConflict) lines.push(`**外部冲突**：${storyKernel.externalConflict}`);
+        if (storyKernel.internalConflict) lines.push(`**内部冲突**：${storyKernel.internalConflict}`);
+        if (storyKernel.relationshipConflict) lines.push(`**关系冲突**：${storyKernel.relationshipConflict}`);
+        if (storyKernel.emotionalHook) lines.push(`**情感钩子**：${storyKernel.emotionalHook}\n`);
+        lines.push("---\n");
+      }
+
+      if (characters && characters.length > 0) {
+        lines.push("## 人物\n");
+        for (const c of characters) {
+          lines.push(`### ${c.name ?? ""} — ${c.role ?? ""}\n`);
+          if (c.traits) lines.push(`**特征**：${c.traits}`);
+          if (c.surfaceDesire) lines.push(`**表面欲望**：${c.surfaceDesire}`);
+          if (c.deepNeed) lines.push(`**真正需求**：${c.deepNeed}`);
+          if (c.fear) lines.push(`**软肋/恐惧**：${c.fear}`);
+          if (c.arc) lines.push(`**角色弧线**：${c.arc}`);
+          if (c.signatureLine) lines.push(`> ${c.signatureLine}\n`);
+        }
+        lines.push("---\n");
+      }
+
+      if (outlines && outlines.length > 0) {
+        lines.push("## 分集大纲\n");
+        for (const o of outlines) {
+          lines.push(`### 第${o.episodeNumber ?? "?"}集：${o.title ?? ""}\n`);
+          if (o.coreEvent) lines.push(`**核心事件**：${o.coreEvent}`);
+          if (o.hook) lines.push(`**结尾钩子**：${o.hook}\n`);
+        }
+        lines.push("---\n");
+      }
+    }
+
+    // Episodes
+    if (lockedEpisodes.length > 0) {
+      lines.push("## 剧本正文\n");
+      for (const ep of lockedEpisodes) {
+        lines.push(`### ${ep.title}\n`);
+        lines.push(ep.content);
+        if (ep.score) {
+          lines.push(`\n> 评分：${ep.score.total} | 冲突${ep.score.conflict} 逻辑${ep.score.logic} 节奏${ep.score.pacing} 人物${ep.score.characterConsistency} 商业${ep.score.commercialPotential} 原创${ep.score.originality}\n`);
+        }
+        lines.push("\n---\n");
+      }
+    }
+
+    const filename = `${project.name.replace(/[\\/:*?"<>|]/g, "_")}.md`;
+    return { filename, markdown: lines.join("\n") };
+  }
+
+  async submitToLibrary(projectId: string, authorId: string) {
+    const { markdown } = await this.generateMarkdown(projectId);
+
+    if (this.prisma.enabled) {
+      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+      if (!project) throw new NotFoundException("Project not found");
+
+      const script = await this.prisma.script.create({
+        data: {
+          title: project.name,
+          genre: project.genre ?? undefined,
+          content: markdown,
+          wordCount: markdown.length,
+          status: "PUBLISHED",
+          authorId,
+        },
+      });
+
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: { status: "COMPLETED" },
+      });
+
+      await this.prisma.conversationMessage.create({
+        data: {
+          projectId,
+          role: "SYSTEM",
+          content: `剧本已提交到剧本库（ID: ${script.id}），项目标记为已完成。`,
+          phase: "EPISODE_GENERATION",
+          decision: { action: "submit_to_library", scriptId: script.id },
+        },
+      });
+
+      return { scriptId: script.id, title: script.title };
+    }
+
+    return { scriptId: "demo", title: projectId };
+  }
+
+  async permanentDelete(projectId: string) {
+    if (this.prisma.enabled) {
+      await this.prisma.project.delete({ where: { id: projectId } });
+    }
+    return { deleted: true };
+  }
 }

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
   User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
-  Download, Upload, Trash2, EyeOff,
+  Download, Upload, Trash2, EyeOff, Maximize2,
 } from "lucide-react";
 
 // ─── Types ───
@@ -86,6 +86,8 @@ export default function StudioPage() {
   const [editTemplate, setEditTemplate] = useState("");
 
   // Modal
+  const [fullscreen, setFullscreen] = useState<{ title: string; content: string } | null>(null);
+
   const [showNewProject, setShowNewProject] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGenre, setNewGenre] = useState("");
@@ -667,11 +669,11 @@ export default function StudioPage() {
               </div>
             </div>
             <div className="planSections">
-              <PlanSection title="故事内核" data={projectDetail.plan.storyKernel} />
-              <PlanSection title="世界观构建" data={projectDetail.plan.worldBuilding} />
-              <PlanSection title="人物塑造" data={projectDetail.plan.characters} isArray />
-              <PlanSection title="分集大纲" data={projectDetail.plan.episodeOutlines} isArray />
-              <PlanSection title="制作要点" data={projectDetail.plan.productionNotes} />
+              <PlanSection title="故事内核" data={projectDetail.plan.storyKernel} onMaximize={(t, c) => setFullscreen({ title: t, content: c })} />
+              <PlanSection title="世界观构建" data={projectDetail.plan.worldBuilding} onMaximize={(t, c) => setFullscreen({ title: t, content: c })} />
+              <PlanSection title="人物塑造" data={projectDetail.plan.characters} isArray onMaximize={(t, c) => setFullscreen({ title: t, content: c })} />
+              <PlanSection title="分集大纲" data={projectDetail.plan.episodeOutlines} isArray onMaximize={(t, c) => setFullscreen({ title: t, content: c })} />
+              <PlanSection title="制作要点" data={projectDetail.plan.productionNotes} onMaximize={(t, c) => setFullscreen({ title: t, content: c })} />
             </div>
           </div>
         ) : rightView === "episode" ? (
@@ -715,9 +717,14 @@ export default function StudioPage() {
               if (!ep) return <div className="emptyState">未找到该集</div>;
               return (
                 <div className="episodeDetail">
-                  <button className="backBtn" onClick={() => setSelectedEpisode(null)}>
-                    <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} /> 返回列表
-                  </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <button className="backBtn" onClick={() => setSelectedEpisode(null)}>
+                      <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} /> 返回列表
+                    </button>
+                    <button className="maxBtn" onClick={() => setFullscreen({ title: ep.title, content: ep.content })} title="全屏查看">
+                      <Maximize2 size={16} />
+                    </button>
+                  </div>
                   <div className="fileMeta">
                     <span className="fileType">{ep.status}</span>
                     <span className="fileDate">v{ep.version}</span>
@@ -759,6 +766,19 @@ export default function StudioPage() {
         )}
       </aside>
 
+      {/* Fullscreen Reader */}
+      {fullscreen && (
+        <div className="fsOverlay" onClick={() => setFullscreen(null)}>
+          <div className="fsContent" onClick={(e) => e.stopPropagation()}>
+            <div className="fsHeader">
+              <h2>{fullscreen.title}</h2>
+              <button className="iconBtn" onClick={() => setFullscreen(null)}><X size={18} /></button>
+            </div>
+            <pre className="fsBody">{fullscreen.content}</pre>
+          </div>
+        </div>
+      )}
+
       {/* New Project Modal */}
       {showNewProject && (
         <div className="modalOverlay" onClick={() => setShowNewProject(false)}>
@@ -786,7 +806,7 @@ export default function StudioPage() {
 
 // ─── Sub-components ───
 
-function PlanSection({ title, data, isArray }: { title: string; data: Record<string, unknown> | Record<string, unknown>[]; isArray?: boolean }) {
+function PlanSection({ title, data, isArray, onMaximize }: { title: string; data: Record<string, unknown> | Record<string, unknown>[]; isArray?: boolean; onMaximize: (title: string, content: string) => void }) {
   const isEmpty = isArray ? (data as unknown[]).length === 0 : Object.keys(data as Record<string, unknown>).length === 0;
   const [open, setOpen] = useState(!isEmpty);
 
@@ -794,12 +814,21 @@ function PlanSection({ title, data, isArray }: { title: string; data: Record<str
     if (!isEmpty) setOpen(true);
   }, [isEmpty]);
 
+  const fullContent = JSON.stringify(data, null, 2);
+
   return (
     <div className="planSection">
-      <button className="planSectionHeader" onClick={() => setOpen(!open)}>
+      <div className="planSectionHeader" onClick={() => setOpen(!open)}>
         <span>{title}</span>
-        <span className="planSectionStatus">{isEmpty ? "待完善" : open ? "收起" : "展开"}</span>
-      </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {!isEmpty && (
+            <button className="maxBtn" onClick={(e) => { e.stopPropagation(); onMaximize(title, fullContent); }} title="全屏查看">
+              <Maximize2 size={14} />
+            </button>
+          )}
+          <span className="planSectionStatus">{isEmpty ? "待完善" : open ? "收起" : "展开"}</span>
+        </div>
+      </div>
       {open && (
         <div className="planSectionBody">
           {isEmpty ? (

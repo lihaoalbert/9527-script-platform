@@ -1557,6 +1557,8 @@ li {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+  min-height: 0;
+  max-height: none;
 }
 
 /* Responsive */
@@ -1986,6 +1988,7 @@ li {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-right: 4px;
 }
 
 .planSection {
@@ -2007,9 +2010,12 @@ li {
   font-weight: 600;
   color: var(--ink);
   text-align: left;
+  user-select: none;
 }
 
 .planSectionHeader:hover { background: #f4f3ef; }
+.planSectionHeader .maxBtn { opacity: 0; transition: opacity 0.15s; }
+.planSectionHeader:hover .maxBtn { opacity: 1; }
 
 .planSectionStatus {
   font-size: 11px;
@@ -2219,7 +2225,8 @@ li {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .backBtn {
@@ -2375,6 +2382,73 @@ li {
   gap: 8px;
   padding: 16px 20px;
   border-top: 1px solid var(--line);
+}
+
+/* ─── Fullscreen Reader ─── */
+
+.fsOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fsContent {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.fsHeader h2 { font-size: 18px; }
+
+.fsBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  color: var(--ink);
+}
+
+/* Maximize button */
+.maxBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 2px;
+  min-height: auto;
+  border-radius: 4px;
+}
+
+.maxBtn:hover {
+  background: #e5e4df;
+  color: var(--ink);
 }
 
 /* ─── Prompt Manager (Right Panel) ─── */

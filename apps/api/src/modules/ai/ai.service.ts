@@ -35,7 +35,12 @@ export class AiService {
       throw new Error("AI_API_KEY is not configured");
     }
 
-    const body: Record<string, unknown> = { model: mdl, messages, temperature };
+    // MiniMax does not support system role - convert to user
+    const fixedMessages = provider === "minimax"
+      ? messages.map((m) => m.role === "system" ? { ...m, role: "user" } : m)
+      : messages;
+
+    const body: Record<string, unknown> = { model: mdl, messages: fixedMessages, temperature };
     if (jsonMode) {
       body.response_format = { type: "json_object" };
     }

@@ -133,14 +133,19 @@ export default function StudioPage() {
     const val = e.target.value;
     setInput(val);
 
-    // Detect @ at the end of input
+    // Only show mentions when user is actively typing a @name (no space after @ yet)
     const lastAt = val.lastIndexOf("@");
-    if (lastAt >= 0 && val.slice(lastAt).split(/\s/)[0].length <= 5) {
-      setShowMentions(true);
-      setMentionIdx(0);
-    } else {
-      setShowMentions(false);
+    if (lastAt >= 0) {
+      const afterAt = val.slice(lastAt);
+      const hasSpace = afterAt.includes(" ");
+      const mentionLen = afterAt.split(/\s/)[0].length;
+      if (!hasSpace && mentionLen >= 1 && mentionLen <= 6) {
+        setShowMentions(true);
+        setMentionIdx(0);
+        return;
+      }
     }
+    setShowMentions(false);
   }
 
   function selectMention(persona: typeof MENTIONS[0]) {

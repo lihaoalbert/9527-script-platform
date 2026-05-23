@@ -2,7 +2,7 @@
 
 import { authFetch } from "../auth-context";
 import { useEffect, useState } from "react";
-import { Users, BookOpen, Bot } from "lucide-react";
+import { Users, BookOpen, Bot, Key, Plus, Trash2 } from "lucide-react";
 
 type Script = {
   id: string; title: string; status: string; authorId: string; wordCount: number;
@@ -18,7 +18,11 @@ type PromptRow = {
 
 const ROLES = ["USER", "CREATOR", "BUYER", "REVIEWER", "OPERATOR", "ADMIN", "SUPER_ADMIN"];
 
-type TabKey = "users" | "scripts" | "ai";
+type TabKey = "users" | "scripts" | "ai" | "apikeys";
+
+type ApiKeyRow = {
+  id: string; name: string; provider: string; apiKey: string; model: string; persona: string; isActive: boolean;
+};
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("users");
@@ -29,6 +33,9 @@ export default function AdminPage() {
   const [editTemplate, setEditTemplate] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([]);
+  const [showNewKey, setShowNewKey] = useState(false);
+  const [newKey, setNewKey] = useState({ name: "", provider: "deepseek", apiKey: "", model: "deepseek-v4-pro", persona: "both" });
 
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -48,6 +55,7 @@ export default function AdminPage() {
     { key: "users", label: "用户管理", icon: Users },
     { key: "scripts", label: "剧本管理", icon: BookOpen },
     { key: "ai", label: "AI 配置", icon: Bot },
+    { key: "apikeys", label: "API Key", icon: Key },
   ];
 
   useEffect(() => {
@@ -59,6 +67,9 @@ export default function AdminPage() {
     }
     if (activeTab === "ai") {
       authFetch("/api/studio/prompts").then((r) => r.ok && r.json()).then((d) => d && setPrompts(d)).catch(() => {});
+    }
+    if (activeTab === "apikeys") {
+      authFetch("/api/admin/apikeys").then((r) => r.ok && r.json()).then((d) => d && setApiKeys(d)).catch(() => {});
     }
   }, [activeTab]);
 
@@ -76,6 +87,41 @@ export default function AdminPage() {
       }
     } catch { setMessage("更新失败"); }
     setLoading(false);
+  }
+
+  async function createApiKey() {
+    try {
+      await authFetch("/api/admin/apikeys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newKey),
+      });
+      setShowNewKey(false);
+      setNewKey({ name: "", provider: "deepseek", apiKey: "", model: "deepseek-v4-pro", persona: "both" });
+      setMessage("API Key 已添加");
+      const res = await authFetch("/api/admin/apikeys");
+      if (res.ok) setApiKeys(await res.json());
+    } catch { setMessage("添加失败"); }
+  }
+
+  async function toggleApiKey(id: string, isActive: boolean) {
+    try {
+      await authFetch(`/api/admin/apikeys/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !isActive }),
+      });
+      const res = await authFetch("/api/admin/apikeys");
+      if (res.ok) setApiKeys(await res.json());
+    } catch { /* ignore */ }
+  }
+
+  async function deleteApiKey(id: string) {
+    if (!confirm("确定删除此 API Key？")) return;
+    try {
+      await authFetch(`/api/admin/apikeys/${id}`, { method: "DELETE" });
+      setApiKeys((prev) => prev.filter((k) => k.id !== id));
+    } catch { /* ignore */ }
   }
 
   async function savePrompt(key: string) {
@@ -220,6 +266,69 @@ export default function AdminPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* API Keys Tab */}
+        {activeTab === "apikeys" && (
+          <div className="adminSection">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <p style={{ margin: 0 }}>管理多个 API Key，编剧小Q 和审核官可绑定不同模型</p>
+              <button onClick={() => setShowNewKey(true)}><Plus size={14} /> 添加</button>
+            </div>
+
+            {showNewKey && (
+              <div className="panel" style={{ marginBottom: 16, padding: 16 }}>
+                <div className="formGrid">
+                  <label>名称<input value={newKey.name} onChange={(e) => setNewKey((k) => ({ ...k, name: e.target.value }))} placeholder="如：Deepseek主力" /></label>
+                  <label>Provider<input value={newKey.provider} onChange={(e) => setNewKey((k) => ({ ...k, provider: e.target.value }))} /></label>
+                  <label className="fullSpan">API Key<input value={newKey.apiKey} onChange={(e) => setNewKey((k) => ({ ...k, apiKey: e.target.value }))} placeholder="sk-..." /></label>
+                  <label>模型<input value={newKey.model} onChange={(e) => setNewKey((k) => ({ ...k, model: e.target.value }))} /></label>
+                  <label>绑定角色
+                    <select value={newKey.persona} onChange={(e) => setNewKey((k) => ({ ...k, persona: e.target.value }))}>
+                      <option value="both">编剧+审核官</option>
+                      <option value="writer">仅编剧小Q</option>
+                      <option value="reviewer">仅审核官</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="actionRow">
+                  <button className="secondaryBtn" onClick={() => setShowNewKey(false)}>取消</button>
+                  <button onClick={() => { void createApiKey(); }} disabled={!newKey.name || !newKey.apiKey}>添加</button>
+                </div>
+              </div>
+            )}
+
+            <div className="dataTable">
+              <div className="tableHeader" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr auto auto" }}>
+                <span>名称</span><span>模型</span><span>绑定角色</span><span>状态</span><span>操作</span>
+              </div>
+              {apiKeys.map((k) => (
+                <div key={k.id} className="tableRow" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr auto auto" }}>
+                  <span><strong>{k.name}</strong><br /><span style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>{k.apiKey.slice(0, 12)}...</span></span>
+                  <span style={{ fontSize: 12 }}>{k.model}</span>
+                  <span style={{ fontSize: 12 }}>
+                    {k.persona === "both" ? "编剧+审核官" : k.persona === "writer" ? "仅编剧" : "仅审核官"}
+                  </span>
+                  <span>
+                    <span className={`statusBadge ${k.isActive ? "statusActive" : ""}`} style={{ cursor: "pointer" }}
+                      onClick={() => { void toggleApiKey(k.id, k.isActive); }}>
+                      {k.isActive ? "启用" : "停用"}
+                    </span>
+                  </span>
+                  <span>
+                    <button className="iconBtn" onClick={() => { void deleteApiKey(k.id); }} title="删除">
+                      <Trash2 size={14} />
+                    </button>
+                  </span>
+                </div>
+              ))}
+              {apiKeys.length === 0 && (
+                <div className="tableRow" style={{ justifyContent: "center", padding: 24 }}>
+                  <span style={{ color: "var(--muted)" }}>暂无 API Key，默认使用 .env 中的配置</span>
+                </div>
+              )}
             </div>
           </div>
         )}

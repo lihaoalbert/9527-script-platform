@@ -193,6 +193,20 @@ model AiPrompt {
   updatedAt DateTime @updatedAt
 }
 
+// ─── API Key Management ───
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  name      String
+  provider  String   @default("deepseek")
+  apiKey    String
+  model     String   @default("deepseek-v4-pro")
+  persona   String   @default("both")
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Studio Project Models ───
 
 enum ProjectStatus {

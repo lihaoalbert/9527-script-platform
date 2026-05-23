@@ -1,12 +1,16 @@
-import { Body, Controller, Get, Patch, Param } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma.service";
 import { CurrentUser } from "../../common/auth.decorator";
+import { ApiKeyService } from "./apikey.service";
 
 type JwtUser = { sub: string; email: string; name: string; role: string };
 
 @Controller("admin")
 export class AdminController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly apiKeyService: ApiKeyService,
+  ) {}
 
   @Get("users")
   async listUsers() {
@@ -32,5 +36,27 @@ export class AdminController {
       data: { role: body.role as any },
       select: { id: true, email: true, name: true, role: true },
     });
+  }
+
+  // ─── API Key Management ───
+
+  @Get("apikeys")
+  listApiKeys() {
+    return this.apiKeyService.list();
+  }
+
+  @Post("apikeys")
+  createApiKey(@Body() body: { name: string; provider: string; apiKey: string; model: string; persona: string }) {
+    return this.apiKeyService.create(body);
+  }
+
+  @Patch("apikeys/:id")
+  updateApiKey(@Param("id") id: string, @Body() body: any) {
+    return this.apiKeyService.update(id, body);
+  }
+
+  @Delete("apikeys/:id")
+  deleteApiKey(@Param("id") id: string) {
+    return this.apiKeyService.remove(id);
   }
 }

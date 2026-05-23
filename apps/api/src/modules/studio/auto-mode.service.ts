@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../common/prisma.service";
+import { ApiKeyService } from "../admin/apikey.service";
 import { AiService } from "../ai/ai.service";
 import { MemoryService } from "./memory.service";
 
@@ -30,6 +31,7 @@ export class AutoModeService {
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
     private readonly memoryService: MemoryService,
+    private readonly apiKeyService: ApiKeyService,
   ) {}
 
   isRunning(projectId: string): boolean {
@@ -245,7 +247,8 @@ export class AutoModeService {
       content: `【自动模式】请为【${PHASE_LABELS[phase]}】直接生成方案，输出JSON：{"content":"简介","data":{"${FIELD_MAP[phase] ?? "data"}":{...}}}`,
     });
 
-    const raw = await this.aiService.chatRaw(messages, 0.8, true);
+    const writerKey = await this.apiKeyService.getForPersona("writer");
+      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -276,7 +279,8 @@ export class AutoModeService {
       content: `【自动模式】生成第${epNum}集剧本（目标${targetWords}字），严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`,
     });
 
-    const raw = await this.aiService.chatRaw(messages, 0.8, true);
+    const writerKey = await this.apiKeyService.getForPersona("writer");
+      const raw = await this.aiService.chatRaw(messages, 0.8, true, writerKey?.apiKey, writerKey?.model);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -313,7 +317,8 @@ export class AutoModeService {
       content: `【自动模式】审查${PHASE_LABELS[phase]}方案，0-100评分。输出JSON：{"content":"意见","data":{"total":85,"locked":false}}。≥90分必须locked:true。`,
     });
 
-    const raw = await this.aiService.chatRaw(messages, 0.5, true);
+    const reviewerKey = await this.apiKeyService.getForPersona("reviewer");
+    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey?.apiKey, reviewerKey?.model);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
@@ -333,7 +338,8 @@ export class AutoModeService {
       content: `【自动模式】审核第${epNum}集，六维度评分。输出JSON：{"content":"评语","data":{"episodeNumber":${epNum},"scores":{"conflict":85,"logic":80,"pacing":88,"characterConsistency":92,"commercialPotential":90,"originality":87},"total":87,"suggestions":["建议"],"locked":false}}`,
     });
 
-    const raw = await this.aiService.chatRaw(messages, 0.5, true);
+    const reviewerKey2 = await this.apiKeyService.getForPersona("reviewer");
+    const raw = await this.aiService.chatRaw(messages, 0.5, true, reviewerKey2?.apiKey, reviewerKey2?.model);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({

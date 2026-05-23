@@ -8,6 +8,7 @@ import { AiModule } from "./modules/ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CreditsModule } from "./modules/credits/credits.module";
 import { AdminController } from "./modules/admin/admin.controller";
+import { ApiKeyService } from "./modules/admin/apikey.service";
 import { ScriptsModule } from "./modules/scripts/scripts.module";
 import { StudioModule } from "./modules/studio/studio.module";
 
@@ -22,6 +23,9 @@ import { StudioModule } from "./modules/studio/studio.module";
     AiModule,
     StudioModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    ApiKeyService,
+  ],
 })
 export class AppModule {}

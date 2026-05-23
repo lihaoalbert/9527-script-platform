@@ -16,14 +16,12 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const FIELD_MAP: Record<string, string> = {
-  STORY_KERNEL: "storyKernel",
-  WORLD_BUILDING: "worldBuilding",
-  CHARACTERS: "characters",
-  EPISODE_OUTLINES: "episodeOutlines",
-  PRODUCTION_NOTES: "productionNotes",
+  STORY_KERNEL: "storyKernel", WORLD_BUILDING: "worldBuilding",
+  CHARACTERS: "characters", EPISODE_OUTLINES: "episodeOutlines", PRODUCTION_NOTES: "productionNotes",
 };
 
-// Track running auto-mode loops: projectId -> { abort: boolean }
+const MAX_ATTEMPTS = 5;
+
 const runningLoops = new Map<string, { abort: boolean }>();
 
 @Injectable()
@@ -38,11 +36,16 @@ export class AutoModeService {
     return runningLoops.has(projectId);
   }
 
-  stopAutoMode(projectId: string) {
+  async stopAutoMode(projectId: string) {
     const loop = runningLoops.get(projectId);
-    if (loop) {
-      loop.abort = true;
-      runningLoops.delete(projectId);
+    if (loop) loop.abort = true;
+    runningLoops.delete(projectId);
+
+    if (this.prisma.enabled) {
+      await this.prisma.project.update({
+        where: { id: projectId }, data: { autoMode: false },
+      }).catch(() => {});
+      await this.saveSystemMessage(projectId, "EPISODE_GENERATION", "自动模式已手动停止。").catch(() => {});
     }
   }
 
@@ -53,29 +56,32 @@ export class AutoModeService {
     const project = await this.prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw new Error("Project not found");
 
-    // Set auto mode
     await this.prisma.project.update({ where: { id: projectId }, data: { autoMode: true } });
 
     const state = { abort: false };
     runningLoops.set(projectId, state);
 
-    // Run in background
-    this.runLoop(projectId, state).catch((e) => {
-      console.error(`Auto mode error for project ${projectId}:`, e);
+    // Fire and forget with full error recovery
+    this.runLoop(projectId, state).catch(async (e) => {
+      console.error(`Auto mode crashed for ${projectId}:`, e?.message ?? e);
+      await this.prisma.project.update({
+        where: { id: projectId }, data: { autoMode: false },
+      }).catch(() => {});
+      await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
+        `自动模式因异常停止：${e?.message ?? "未知错误"}。可重新开启。`).catch(() => {});
       runningLoops.delete(projectId);
     });
   }
 
+  // ─── Main Loop ───
+
   private async runLoop(projectId: string, state: { abort: boolean }) {
-    let project = await this.prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) return;
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || state.abort) return;
 
-    const phase = project.currentPhase as ProjectPhase;
-    const isPlanning = project.status === "PLANNING";
-
-    if (isPlanning) {
-      await this.runPlanningLoop(projectId, state, phase);
-    } else {
+    if (project.status === "PLANNING") {
+      await this.runPlanningLoop(projectId, state, project.currentPhase as ProjectPhase);
+    } else if (project.status === "EPISODES") {
       await this.runEpisodeLoop(projectId, state);
     }
   }
@@ -87,145 +93,195 @@ export class AutoModeService {
       if (state.abort) break;
 
       const phase = PLANNING_PHASES[i];
-      let score = 0;
-      let attempt = 0;
-
-      // Writer → Reviewer loop until score ≥ 90 or abort
-      while (score < 90 && !state.abort && attempt < 5) {
-        attempt++;
-
-        // 1. Writer generates proposal
-        await this.runWriterTurn(projectId, phase, attempt);
-        if (state.abort) break;
-        await this.delay(2000);
-
-        // 2. Reviewer scores
-        score = await this.runReviewerTurn(projectId, phase);
-        if (state.abort) break;
-        await this.delay(2000);
-      }
+      const result = await this.iterationLoop(projectId, state, phase, () =>
+        this.runWriterTurn(projectId, phase),
+        () => this.runReviewerTurn(projectId, phase),
+        PHASE_LABELS[phase],
+      );
 
       if (state.abort) break;
-
-      // Advance to next phase
-      if (i < PLANNING_PHASES.length - 1) {
-        const nextPhase = PLANNING_PHASES[i + 1];
-        await this.prisma.project.update({
-          where: { id: projectId },
-          data: { currentPhase: nextPhase },
-        });
-        await this.saveSystemMessage(projectId, nextPhase,
-          `自动模式：${PHASE_LABELS[phase]}已通过（${score}分），进入${PHASE_LABELS[nextPhase]}。`);
-      } else {
-        // Lock plan
-        await this.lockPlan(projectId);
-        await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
-          "自动模式：规划阶段全部完成，规划书已锁定。开始分集生成。");
-        await this.delay(2000);
-        // Start episode loop
-        await this.runEpisodeLoop(projectId, state);
+      if (result === "max_attempts") {
+        await this.pauseWithReason(projectId, state,
+          `自动模式暂停：${PHASE_LABELS[phase]}经过${MAX_ATTEMPTS}轮修订仍未达标。请手动介入决策。`);
         return;
       }
 
-      await this.delay(3000);
+      // Advance
+      if (i < PLANNING_PHASES.length - 1) {
+        const next = PLANNING_PHASES[i + 1];
+        await this.prisma.project.update({
+          where: { id: projectId }, data: { currentPhase: next },
+        }).catch(() => {});
+        await this.saveSystemMessage(projectId, next,
+          `自动模式：${PHASE_LABELS[phase]}已达标，进入${PHASE_LABELS[next]}。`);
+      } else {
+        await this.lockPlan(projectId).catch(() => {});
+        await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
+          "自动模式：规划全部完成，规划书已锁定。开始分集生成。");
+        await this.delay(2000);
+        if (!state.abort) await this.runEpisodeLoop(projectId, state);
+        return;
+      }
+      await this.delay(2500 + Math.random() * 1000);
     }
   }
 
   private async runEpisodeLoop(projectId: string, state: { abort: boolean }) {
     const project = await this.prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) return;
+    if (!project || state.abort) return;
 
     const batchSize = project.episodeBatchSize;
-    const lockedEpisodes = await this.prisma.projectEpisode.count({
+    const lockedCount = await this.prisma.projectEpisode.count({
       where: { projectId, status: "LOCKED" },
     });
-    const nextEpNum = lockedEpisodes + 1;
+    const startEp = lockedCount + 1;
 
-    for (let epNum = nextEpNum; epNum < nextEpNum + batchSize; epNum++) {
+    for (let epNum = startEp; epNum < startEp + batchSize; epNum++) {
       if (state.abort) break;
 
-      let score = 0;
-      let attempt = 0;
+      await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
+        `自动模式：开始生成第${epNum}集（目标${project.episodeTargetWords}字）。`);
 
-      while (score < 90 && !state.abort && attempt < 5) {
-        attempt++;
+      const result = await this.iterationLoop(projectId, state, "EPISODE_GENERATION",
+        () => this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords),
+        () => this.runReviewerEpisodeTurn(projectId, epNum),
+        `第${epNum}集`,
+      );
 
-        // Writer generates episode
-        await this.runWriterEpisodeTurn(projectId, epNum, project.episodeTargetWords, attempt);
-        if (state.abort) break;
-        await this.delay(3000);
-
-        // Reviewer scores
-        score = await this.runReviewerEpisodeTurn(projectId, epNum);
-        if (state.abort) break;
-        await this.delay(2000);
+      if (state.abort) break;
+      if (result === "max_attempts") {
+        await this.pauseWithReason(projectId, state,
+          `自动模式暂停：第${epNum}集经过${MAX_ATTEMPTS}轮修订仍未达到90分。请手动介入。`);
+        return;
       }
 
-      if (state.abort) break;
-
       await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
-        `自动模式：第${epNum}集已通过（${score}分），已锁定。`);
-      await this.delay(2000);
+        `自动模式：第${epNum}集已达标锁定。`);
+      await this.delay(2000 + Math.random() * 1000);
     }
 
-    // Pause auto mode after batch
     if (!state.abort) {
-      await this.prisma.project.update({ where: { id: projectId }, data: { autoMode: false } });
-      await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
-        `自动模式：已完成本批次${batchSize}集，暂停。可手动继续或重新开启自动模式。`);
+      await this.pauseWithReason(projectId, state,
+        `自动模式：本批次${batchSize}集已完成。可重新开启继续生成。`);
     }
-
-    runningLoops.delete(projectId);
   }
 
-  // ─── Writer Turn ───
+  // ─── Generic Writer↔Reviewer Iteration ───
 
-  private async runWriterTurn(projectId: string, phase: ProjectPhase, attempt: number) {
+  private async iterationLoop(
+    projectId: string,
+    state: { abort: boolean },
+    phase: ProjectPhase,
+    writerFn: () => Promise<void>,
+    reviewerFn: () => Promise<number>,
+    label: string,
+  ): Promise<"passed" | "max_attempts"> {
+    let score = 0;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (state.abort) return "max_attempts";
+
+      // Writer turn
+      const writerOk = await this.safeCall(`writer-${label}`, async () => { await writerFn(); return true; }, projectId, state);
+      if (writerOk === null || state.abort) return "max_attempts";
+      await this.delay(2000 + Math.random() * 1000);
+      if (state.abort) return "max_attempts";
+
+      // Reviewer turn
+      const reviewerResult = await this.safeCall(`reviewer-${label}`, () => reviewerFn(), projectId, state);
+      if (reviewerResult === null || state.abort) return "max_attempts";
+      score = reviewerResult;
+      await this.delay(2000 + Math.random() * 1000);
+
+      if (score >= 90) {
+        return "passed";
+      }
+
+      if (attempt < MAX_ATTEMPTS) {
+        await this.saveSystemMessage(projectId, phase,
+          `自动模式：${label}当前${score}分（未达90），第${attempt + 1}轮修订...`);
+      }
+    }
+
+    return score >= 90 ? "passed" : "max_attempts";
+  }
+
+  // ─── Safe Call Wrapper ───
+
+  private async safeCall<T>(
+    label: string,
+    fn: () => Promise<T>,
+    projectId: string,
+    state: { abort: boolean },
+  ): Promise<T | null> {
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        return await fn();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`Auto mode [${label}] attempt ${retry + 1} failed:`, msg);
+        if (retry < 2) {
+          await this.delay(3000 * (retry + 1)); // Exponential backoff
+        } else {
+          await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
+            `自动模式：${label}连续3次调用失败（${msg}）。自动暂停，请手动重试。`);
+          await this.prisma.project.update({
+            where: { id: projectId }, data: { autoMode: false },
+          }).catch(() => {});
+          state.abort = true;
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ─── Writer Turns ───
+
+  private async runWriterTurn(projectId: string, phase: ProjectPhase) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", phase);
-    const instruction = attempt === 1
-      ? `【自动模式】请直接为【${PHASE_LABELS[phase]}】阶段生成方案，不需要提问。输出结构化JSON到data。`
-      : `【自动模式-修订第${attempt}次】审核官提出了修改意见，请根据意见修改方案并重新输出。`;
-
-    messages.push({ role: "user", content: instruction });
+    messages.push({
+      role: "user",
+      content: `【自动模式】请为【${PHASE_LABELS[phase]}】直接生成方案，输出JSON：{"content":"简介","data":{"${FIELD_MAP[phase] ?? "data"}":{...}}}`,
+    });
 
     const raw = await this.aiService.chatRaw(messages, 0.8, true);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
       data: {
-        projectId, role: "WRITER", content: parsed.content,
-        phase, decision: { role: "writer", phase, ...parsed.data } as Prisma.InputJsonValue,
+        projectId, role: "WRITER", content: parsed.content, phase,
+        decision: { role: "writer", phase, ...parsed.data } as Prisma.InputJsonValue,
       },
     });
 
-    // Save plan data
     if (parsed.data) {
       const fieldName = FIELD_MAP[phase];
-      const value = parsed.data[fieldName] ?? parsed.data;
-      if (value && typeof value === "object" && Object.keys(value).length > 0) {
-        await this.prisma.projectPlan.update({
-          where: { projectId },
-          data: { [fieldName]: value } as Prisma.ProjectPlanUpdateInput,
-        });
+      if (fieldName) {
+        const value = parsed.data[fieldName] ?? parsed.data;
+        if (value && typeof value === "object" && Object.keys(value as object).length > 0) {
+          await this.prisma.projectPlan.update({
+            where: { projectId },
+            data: { [fieldName]: value } as Prisma.ProjectPlanUpdateInput,
+          });
+        }
       }
     }
   }
 
-  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number, attempt: number) {
+  private async runWriterEpisodeTurn(projectId: string, epNum: number, targetWords: number) {
     const messages = await this.memoryService.assembleContext(projectId, "writer", "EPISODE_GENERATION");
-    const instruction = attempt === 1
-      ? `【自动模式】请生成第${epNum}集完整剧本（目标${targetWords}字）。严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`
-      : `【自动模式-修订第${attempt}次】审核官对第${epNum}集提出修改意见，请据此修订。`;
-
-    messages.push({ role: "user", content: instruction });
+    messages.push({
+      role: "user",
+      content: `【自动模式】生成第${epNum}集剧本（目标${targetWords}字），严格遵循项目宪法。输出JSON：{"content":"简介","data":{"episode":{"episodeNumber":${epNum},"title":"第${epNum}集","content":"正文..."}}}`,
+    });
 
     const raw = await this.aiService.chatRaw(messages, 0.8, true);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
       data: {
-        projectId, role: "WRITER", content: parsed.content,
-        phase: "EPISODE_GENERATION",
+        projectId, role: "WRITER", content: parsed.content, phase: "EPISODE_GENERATION",
         decision: { role: "writer", phase: "EPISODE_GENERATION", episodeNumber: epNum, ...parsed.data } as Prisma.InputJsonValue,
       },
     });
@@ -242,50 +298,53 @@ export class AutoModeService {
         },
         update: {
           content: ep.content as string,
-          status: "DRAFT",
-          version: { increment: 1 },
+          status: "DRAFT", version: { increment: 1 },
         },
       });
     }
   }
 
-  // ─── Reviewer Turn ───
+  // ─── Reviewer Turns ───
 
   private async runReviewerTurn(projectId: string, phase: ProjectPhase): Promise<number> {
     const messages = await this.memoryService.assembleContext(projectId, "reviewer", phase);
-    messages.push({ role: "user", content: "【自动模式】请审查当前阶段的方案，用0-100评分并给出修改意见。如果≥90分给出locked:true。" });
+    messages.push({
+      role: "user",
+      content: `【自动模式】审查${PHASE_LABELS[phase]}方案，0-100评分。输出JSON：{"content":"意见","data":{"total":85,"locked":false}}。≥90分必须locked:true。`,
+    });
 
     const raw = await this.aiService.chatRaw(messages, 0.5, true);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
       data: {
-        projectId, role: "REVIEWER", content: parsed.content,
-        phase, decision: { role: "reviewer", phase, ...parsed.data } as Prisma.InputJsonValue,
+        projectId, role: "REVIEWER", content: parsed.content, phase,
+        decision: { role: "reviewer", phase, ...parsed.data } as Prisma.InputJsonValue,
       },
     });
 
-    return (parsed.data?.total as number) ?? (parsed.data?.locked ? 90 : 70);
+    return this.extractScore(parsed.data);
   }
 
   private async runReviewerEpisodeTurn(projectId: string, epNum: number): Promise<number> {
     const messages = await this.memoryService.assembleContext(projectId, "reviewer", "EPISODE_GENERATION");
-    messages.push({ role: "user", content: `【自动模式】请审核第${epNum}集剧本，六维度评分。≥90锁定。输出JSON。` });
+    messages.push({
+      role: "user",
+      content: `【自动模式】审核第${epNum}集，六维度评分。输出JSON：{"content":"评语","data":{"episodeNumber":${epNum},"scores":{"conflict":85,"logic":80,"pacing":88,"characterConsistency":92,"commercialPotential":90,"originality":87},"total":87,"suggestions":["建议"],"locked":false}}`,
+    });
 
     const raw = await this.aiService.chatRaw(messages, 0.5, true);
     const parsed = this.parseJson(raw);
 
     await this.prisma.conversationMessage.create({
       data: {
-        projectId, role: "REVIEWER", content: parsed.content,
-        phase: "EPISODE_GENERATION",
+        projectId, role: "REVIEWER", content: parsed.content, phase: "EPISODE_GENERATION",
         decision: { role: "reviewer", phase: "EPISODE_GENERATION", ...parsed.data } as Prisma.InputJsonValue,
       },
     });
 
-    // Process score
     const scores = parsed.data?.scores as Record<string, number> | undefined;
-    const total = (parsed.data?.total as number) ?? 0;
+    const total = this.extractScore(parsed.data);
     const locked = parsed.data?.locked === true;
 
     if (scores && total > 0) {
@@ -313,16 +372,33 @@ export class AutoModeService {
       }
     }
 
-    return locked ? 90 : total;
+    return locked ? 90 : Math.max(total, 0);
   }
 
   // ─── Helpers ───
 
+  private extractScore(data?: Record<string, unknown>): number {
+    if (!data) return 0;
+    // Try explicit total field
+    if (typeof data.total === "number" && data.total >= 0 && data.total <= 100) {
+      return data.total;
+    }
+    // Try locked flag
+    if (data.locked === true) return 90;
+    // Try to compute from scores object
+    const scores = data.scores as Record<string, number> | undefined;
+    if (scores) {
+      const values = Object.values(scores).filter((v) => typeof v === "number");
+      if (values.length > 0) return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+    }
+    return 0;
+  }
+
   private parseJson(raw: string): { content: string; data?: Record<string, unknown> } {
     try {
       let jsonStr = raw.trim();
-      const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) jsonStr = jsonMatch[1].trim();
+      const m = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (m) jsonStr = m[1].trim();
       return JSON.parse(jsonStr);
     } catch {
       return { content: raw };
@@ -346,7 +422,18 @@ export class AutoModeService {
     });
   }
 
+  private async pauseWithReason(projectId: string, state: { abort: boolean }, reason: string) {
+    state.abort = true;
+    runningLoops.delete(projectId);
+    if (this.prisma.enabled) {
+      await this.prisma.project.update({
+        where: { id: projectId }, data: { autoMode: false },
+      }).catch(() => {});
+      await this.saveSystemMessage(projectId, "EPISODE_GENERATION", reason);
+    }
+  }
+
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((r) => setTimeout(r, ms));
   }
 }

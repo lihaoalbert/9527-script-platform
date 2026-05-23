@@ -447,6 +447,68 @@ export class StudioService {
     return { locked: true };
   }
 
+  async unlockPlan(projectId: string) {
+    if (!this.prisma.enabled) return { unlocked: true };
+
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException("Project not found");
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: projectId },
+        data: {
+          status: "PLANNING",
+          currentPhase: "CHARACTERS",
+          planLockedAt: null,
+        },
+      });
+      await tx.projectPlan.update({
+        where: { projectId },
+        data: { lockedAt: null },
+      });
+      await tx.conversationMessage.create({
+        data: {
+          projectId,
+          role: "SYSTEM",
+          content: "规划书已解锁，可以回到前面的阶段修改。当前停在人物塑造阶段，使用推进按钮继续。",
+          phase: "CHARACTERS",
+          decision: { action: "unlock_plan" },
+        },
+      });
+    });
+
+    return { unlocked: true };
+  }
+
+  async goToPhase(projectId: string, phase: string) {
+    if (!this.prisma.enabled) return { phase };
+
+    const validPhases = ["STORY_KERNEL", "WORLD_BUILDING", "CHARACTERS", "EPISODE_OUTLINES", "PRODUCTION_NOTES", "EPISODE_GENERATION"];
+    if (!validPhases.includes(phase)) throw new Error("Invalid phase");
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { currentPhase: phase as any },
+    });
+
+    const phaseLabels: Record<string, string> = {
+      STORY_KERNEL: "故事内核", WORLD_BUILDING: "世界观构建", CHARACTERS: "人物塑造",
+      EPISODE_OUTLINES: "分集大纲", PRODUCTION_NOTES: "制作要点",
+    };
+
+    await this.prisma.conversationMessage.create({
+      data: {
+        projectId,
+        role: "SYSTEM",
+        content: `已跳转至【${phaseLabels[phase] ?? phase}】阶段。`,
+        phase: phase as any,
+        decision: { action: "go_phase", phase },
+      },
+    });
+
+    return { phase };
+  }
+
   async updatePlan(projectId: string, input: UpdatePlanInput) {
     if (this.prisma.enabled) {
       return this.prisma.projectPlan.update({

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
   User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
-  Download, Upload, Trash2, EyeOff, Maximize2,
+  Download, Upload, Trash2, EyeOff, Maximize2, Unlock,
 } from "lucide-react";
 
 // ─── Types ───
@@ -283,6 +283,26 @@ export default function StudioPage() {
     } catch (e) { console.error(e); }
   }
 
+  async function unlockPlan() {
+    if (!activeProjectId || !confirm("解锁规划书后可以修改前面阶段的内容。确定解锁？")) return;
+    try {
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/unlock-plan`, { method: "POST" });
+      if (res.ok) await selectProject(activeProjectId);
+    } catch (e) { console.error(e); }
+  }
+
+  async function goToPhase(phase: string) {
+    if (!activeProjectId) return;
+    try {
+      await authFetch(`${API}/studio/projects/${activeProjectId}/go-phase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase }),
+      });
+      await selectProject(activeProjectId);
+    } catch (e) { console.error(e); }
+  }
+
   async function startAutoMode() {
     if (!activeProjectId) return;
     try {
@@ -445,7 +465,11 @@ export default function StudioPage() {
             <div className="phaseLabel">创作进度</div>
             <div className="phaseSteps">
               {PHASE_STEPS.map((step, i) => (
-                <div key={step} className={`phaseStep ${i < currentPhaseIndex ? "done" : i === currentPhaseIndex ? "current" : ""}`}>
+                <div key={step}
+                  className={`phaseStep ${i < currentPhaseIndex ? "done" : i === currentPhaseIndex ? "current" : ""}`}
+                  onClick={() => { if (i !== currentPhaseIndex) { void goToPhase(step); } }}
+                  style={{ cursor: i !== currentPhaseIndex ? "pointer" : "default" }}
+                  title={i !== currentPhaseIndex ? `跳转到${PHASE_LABELS[step]}` : "当前阶段"}>
                   <div className="phaseDot">{i < currentPhaseIndex ? <CheckCircle2 size={12} /> : i + 1}</div>
                   <span className="phaseStepLabel">{PHASE_LABELS[step]}</span>
                 </div>
@@ -660,7 +684,14 @@ export default function StudioPage() {
             <div className="rightHeader">
               <h2>项目规划书</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {projectDetail.plan.lockedAt && <span className="lockedBadge"><Lock size={12} /> 已锁定</span>}
+                {projectDetail.plan.lockedAt && (
+                  <>
+                    <span className="lockedBadge"><Lock size={12} /> 已锁定</span>
+                    <button className="viewPlanToggle" onClick={() => { void unlockPlan(); }}>
+                      <Unlock size={14} /> 解锁
+                    </button>
+                  </>
+                )}
                 {isEpisodes && (
                   <button className="viewPlanToggle" onClick={() => setRightView("episode")}>
                     <FileText size={14} /> 分集列表

@@ -67,6 +67,16 @@ export class StudioController {
     return this.studioService.lockPlan(id);
   }
 
+  @Post("projects/:id/unlock-plan")
+  unlockPlan(@Param("id") id: string) {
+    return this.studioService.unlockPlan(id);
+  }
+
+  @Post("projects/:id/go-phase")
+  goToPhase(@Param("id") id: string, @Body() body: { phase: string }) {
+    return this.studioService.goToPhase(id, body.phase);
+  }
+
   @Patch("projects/:id/plan")
   updatePlan(@Param("id") id: string, @Body() body: Record<string, unknown>) {
     return this.studioService.updatePlan(id, body);

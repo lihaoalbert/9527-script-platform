@@ -45,14 +45,28 @@ export class AiService {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+
+    let response: Response;
+    try {
+      response = await fetch(baseUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e instanceof Error && e.name === "AbortError") {
+        throw new Error(`${provider} 响应超时（超过120秒）。模型可能在处理长内容，请稍后重试。`);
+      }
+      throw e;
+    }
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const error = await response.text();

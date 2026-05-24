@@ -169,10 +169,8 @@ export class StudioService {
         : null;
       const currentPhase = (project?.currentPhase ?? "STORY_KERNEL") as ProjectPhase;
 
-      // Detect what phase the user is actually asking about (for reviewer in manual mode)
-      detectedPhase = input.targetPersona === "reviewer"
-        ? this.detectPhaseFromMessage(input.content, currentPhase)
-        : currentPhase;
+      // Detect what phase the user is actually asking about
+      detectedPhase = this.detectPhaseFromMessage(input.content, currentPhase);
 
       const messages = await this.memoryService.assembleContext(
         projectId,

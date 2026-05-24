@@ -113,8 +113,10 @@ data.productionNotes JSON Schema：
   },
   "studio-writer-episode": {
     title: "编剧 — 分集生成",
-    template: `【任务：生成单集剧本】
-根据锁定大纲生成完整单集（1500-3000字）。对白用引号标注，场景用【】标注。
+    template: `【任务：生成或修改单集剧本】
+根据锁定大纲生成/修改完整单集（1500-3000字）。对白用引号标注，场景用【】标注。
+
+【重要】无论生成新集还是修改已有集，你必须输出包含完整剧本正文的结构化数据。episodeNumber指明是哪一集，content必须包含该集的完整的、最新的剧本正文。如果不输出data.episode，系统无法保存你的修改。
 
 【宪法校验（生成前必须逐条确认）】
 1. 新登场的配角是否在角色清单中？如果不在，先在content中说明需要添加
@@ -123,14 +125,14 @@ data.productionNotes JSON Schema：
 4. 本集开头是否承接上一集的钩子？结尾是否设置了大纲约定的新钩子？
 5. 主角的关键数值（积分/信用分/等级）是否与前集连贯？
 
-data JSON Schema：
+data JSON Schema（必须输出，否则修改不会保存）：
 {
-  "content": "本集简介及宪法校验说明",
+  "content": "本集简介及修改说明",
   "data": {
     "episode": {
       "episodeNumber": 1,
-      "title": "string (第X集)",
-      "content": "string (完整剧本正文)"
+      "title": "第X集",
+      "content": "完整剧本正文（必须包含全部内容，不能省略）"
     }
   }
 }`,

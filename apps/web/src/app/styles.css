@@ -1338,12 +1338,34 @@ li {
 .messageText {
   background: #f4f3ef;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 12px 16px 24px 16px;
   font-size: 14px;
   line-height: 1.6;
   color: var(--ink);
   white-space: pre-wrap;
+  position: relative;
 }
+
+.copyBtn {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  min-height: auto;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.messageText:hover .copyBtn { opacity: 1; }
+.copyBtn:hover { background: rgba(0,0,0,0.08); color: var(--ink); }
 
 .message.user .messageText {
   background: var(--accent);

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
   User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
-  Download, Upload, Trash2, EyeOff, Maximize2, Unlock, MapPin,
+  Download, Upload, Trash2, EyeOff, Maximize2, Unlock, MapPin, Copy,
 } from "lucide-react";
 
 // ─── Types ───
@@ -602,7 +602,12 @@ export default function StudioPage() {
                   {isCharacter && <div className="messageName">🎭 {charName}</div>}
                   {persona && <div className="messageName">{persona.name}</div>}
                   {isSystem && !isCharacter && <div className="messageName">系统</div>}
-                  <div className="messageText">{msg.content}</div>
+                  <div className="messageText">
+                    {msg.content}
+                    <button className="copyBtn" onClick={() => { navigator.clipboard.writeText(msg.content); }} title="复制">
+                      <Copy size={12} />
+                    </button>
+                  </div>
                   {msg.decision && msg.role !== "SYSTEM" && (
                     <div className="messageDecision">
                       <CheckCircle2 size={12} /> 已提交结构化数据

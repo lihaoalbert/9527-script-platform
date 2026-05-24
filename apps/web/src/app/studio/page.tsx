@@ -812,7 +812,7 @@ export default function StudioPage() {
             {!selectedEpisode ? (
               <div className="episodeList">
                 {projectDetail.episodes.map((ep) => (
-                  <button
+                  <div
                     key={ep.episodeNumber}
                     className={`episodeItem ${ep.status === "LOCKED" ? "locked" : ""} ${ep.status !== "LOCKED" ? "inProgress" : ""}`}
                     onClick={() => setSelectedEpisode(ep.episodeNumber)}
@@ -837,7 +837,7 @@ export default function StudioPage() {
                         </button>
                       )}
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (() => {

@@ -332,13 +332,18 @@ export class StudioService {
       if (!fieldName) return;
 
       // Check for the expected key, or use entire data object as fallback
-      let value = data[fieldName];
-      if (!value || (typeof value === "object" && Object.keys(value as object).length === 0)) {
-        // Fallback: exclude content-like keys and use the rest
-        const clean = { ...data };
-        delete clean.content;
-        if (Object.keys(clean).length > 0) {
-          value = clean;
+      const dataObj = data as Record<string, unknown>;
+      let value = dataObj[fieldName];
+      if (!value || (typeof value === "object" && !Array.isArray(value) && Object.keys(value as object).length === 0)) {
+        // Fallback: if data itself is an array, use it directly (AI might omit the wrapper key)
+        if (Array.isArray(data)) {
+          value = data;
+        } else {
+          const clean = { ...dataObj };
+          delete clean.content;
+          if (Object.keys(clean).length > 0) {
+            value = clean;
+          }
         }
       }
 

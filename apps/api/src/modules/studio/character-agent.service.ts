@@ -34,10 +34,12 @@ export class CharacterAgentService {
       return { content: `找不到角色"${characterName}"。请先在人物塑造中创建此角色。`, characterName };
     }
 
-    const systemPrompt = this.buildCharacterPrompt(profile, characterName, phase);
+    // Build timeline context: what has happened in locked episodes
+    const timeline = await this.buildTimelineContext(projectId, characterName);
+
+    const systemPrompt = this.buildCharacterPrompt(profile, characterName, phase) + "\n\n" + timeline;
     const messages: Array<{ role: string; content: string }> = [
       { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage },
     ];
 
     // Load recent character-specific memory
@@ -45,15 +47,17 @@ export class CharacterAgentService {
       const history = await this.prisma.conversationMessage.findMany({
         where: { projectId, agentName: characterName },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 15,
       });
       for (const m of history.reverse()) {
-        messages.splice(1, 0, {
-          role: m.role === "SYSTEM" ? "user" : "user",
+        messages.push({
+          role: m.role === "SYSTEM" ? "assistant" : "user",
           content: m.content,
         });
       }
     }
+
+    messages.push({ role: "user", content: userMessage });
 
     const raw = await this.aiService.chatRaw(messages, 0.9, true);
     try {
@@ -77,6 +81,43 @@ export class CharacterAgentService {
         agentName: characterName,
       },
     });
+  }
+
+  private async buildTimelineContext(projectId: string, characterName: string): Promise<string> {
+    if (!this.prisma.enabled) return "";
+
+    const episodes = await this.prisma.projectEpisode.findMany({
+      where: { projectId, status: "LOCKED" },
+      orderBy: { episodeNumber: "asc" },
+      select: { episodeNumber: true, title: true, content: true },
+    });
+
+    if (episodes.length === 0) return "\n【时间线】故事尚未开始。你还不知道将发生什么。\n";
+
+    const lines: string[] = [];
+    lines.push(`\n【时间线记忆 — 以下是已经发生的剧情，你知道这些事】`);
+
+    for (const ep of episodes) {
+      // Extract scenes and events involving this specific character
+      const hasCharacter = ep.content.includes(characterName);
+      const summary = this.extractEpisodeSummary(ep.content, 150);
+      const marker = hasCharacter ? "★ 你在场" : "  （你未出场，可能从他人处听说）";
+      lines.push(`\n第${ep.episodeNumber}集《${ep.title}》${marker}\n${summary}`);
+    }
+
+    lines.push(`\n【重要规则】`);
+    lines.push(`- 以上时间线中标注"你在场"的事件，你亲身经历，可以详细回忆`);
+    lines.push(`- 标注"你未出场"的事件，你只能通过传闻了解，不应知道细节`);
+    lines.push(`- 时间线之后的事还没有发生，你不能预知未来`);
+    lines.push(`- 如果有人问你还没发生的事，你应该说"我不知道"或表现出困惑`);
+
+    return lines.join("\n");
+  }
+
+  private extractEpisodeSummary(content: string, maxLen: number): string {
+    // Remove scene markers for cleaner summary
+    const clean = content.replace(/【.+?】/g, "").replace(/\n+/g, " ").trim();
+    return clean.length > maxLen ? clean.slice(0, maxLen) + "..." : clean;
   }
 
   private async loadProfile(projectId: string, name: string): Promise<CharacterProfile | null> {
@@ -114,11 +155,14 @@ export class CharacterAgentService {
 ${relDesc || "暂无定义的关系"}
 
 【表演要求】
-1. 以第一人称回应，就像你在场景中说台词或做动作
-2. 保持你的人物性格一致性——你的恐惧不能突然消失，你的欲望驱动你的行动
-3. 用你的标志性口吻说话，但不要刻意重复标志性台词
-4. 如果问题涉及你不知道的信息（超出你的角色认知），如实表现困惑或不知情
-5. 场景描述用【】标注，对白正常书写即可
+1. 你是在一场戏中表演。以第一人称回应，用对白 +【动作描述】的方式
+2. 你的性格必须始终保持一致——恐惧不会突然消失，欲望驱动一切行动
+3. 用你的标志性口吻，但不要刻意重复标志性台词
+4. 只基于时间线中你已知的信息回应。不知道的事就表现不知道
+5. 如果编剧向你提问（以第二人称"你"开头），你直接以角色身份回答
+6. 你的回应可以包含情感、犹豫、内心挣扎——这些都是好表演的一部分
+
+回应JSON格式：{"content": "【场景/动作描述】对白..."}
 
 当前项目阶段：${phase}。你的回应格式：{"content": "【动作/场景描述】对白内容..."}`;
   }

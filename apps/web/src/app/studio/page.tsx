@@ -357,9 +357,22 @@ export default function StudioPage() {
     })();
   }, [activeProjectId]);
 
-  function downloadProject() {
+  async function downloadProject() {
     if (!activeProjectId) return;
-    window.open(`${API}/studio/projects/${activeProjectId}/download`, "_blank");
+    try {
+      const res = await authFetch(`${API}/studio/projects/${activeProjectId}/download`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const disposition = res.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="?(.+?)"?$/);
+        a.href = url;
+        a.download = match?.[1] || "剧本.md";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) { console.error(e); }
   }
 
   async function submitToLibrary() {

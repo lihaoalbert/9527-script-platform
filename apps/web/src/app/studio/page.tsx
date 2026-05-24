@@ -604,7 +604,18 @@ export default function StudioPage() {
                   {isSystem && !isCharacter && <div className="messageName">系统</div>}
                   <div className="messageText">
                     {msg.content}
-                    <button className="copyBtn" onClick={() => { navigator.clipboard.writeText(msg.content); }} title="复制">
+                    <button className="copyBtn" onClick={() => {
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(msg.content);
+                      } else {
+                        const ta = document.createElement("textarea");
+                        ta.value = msg.content;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(ta);
+                      }
+                    }} title="复制">
                       <Copy size={12} />
                     </button>
                   </div>

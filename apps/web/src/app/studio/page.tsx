@@ -652,7 +652,7 @@ export default function StudioPage() {
               <div className="mentionDropdown">
                 {MENTIONS.map((m, i) => (
                   <button
-                    key={m.role}
+                    key={m.role === "character" ? `char-${m.name}` : m.role}
                     className={`mentionItem ${i === mentionIdx ? "active" : ""}`}
                     onClick={() => selectMention(m)}
                     onMouseEnter={() => setMentionIdx(i)}

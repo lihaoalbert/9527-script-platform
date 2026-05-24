@@ -129,9 +129,35 @@ export class MemoryService {
       parts.push("【分集大纲】⚠️ 尚未定义！请先完成分集大纲。");
     }
 
+    // Collect scenes from locked episodes
+    const scenes = await this.collectScenes(projectId);
+    if (scenes.length > 0) {
+      parts.push(`【场景清单（${scenes.length}个，新场景出现时应保持名称一致）】\n${scenes.join("、")}`);
+    }
+
     if (parts.length === 0) return header + "暂无内容。";
 
-    return header + "⚠️ 以下内容必须严格遵守。跨集逻辑、角色名称/身份、世界规则不得自相矛盾。\n\n" + parts.join("\n\n");
+    return header + "⚠️ 以下内容必须严格遵守。跨集逻辑、角色名称/身份/场景名称、世界规则不得自相矛盾。\n\n" + parts.join("\n\n");
+  }
+
+  private async collectScenes(projectId: string): Promise<string[]> {
+    if (!this.prisma.enabled) return [];
+    const episodes = await this.prisma.projectEpisode.findMany({
+      where: { projectId, status: "LOCKED" },
+      orderBy: { episodeNumber: "asc" },
+      select: { content: true },
+    });
+    const sceneSet = new Set<string>();
+    for (const ep of episodes) {
+      const matches = ep.content.match(/【(.+?)】/g);
+      if (matches) {
+        for (const m of matches) {
+          const scene = m.replace(/【|】/g, "").trim();
+          if (scene.length >= 2 && scene.length <= 20) sceneSet.add(scene);
+        }
+      }
+    }
+    return Array.from(sceneSet);
   }
 
   private async getLayer2(projectId: string, phase: ProjectPhase): Promise<string> {

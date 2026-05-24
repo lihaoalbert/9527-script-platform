@@ -350,9 +350,48 @@ ${feedback}
         },
       });
 
-      // Auto-detect new characters not in the plan
+      // Auto-detect new characters and scenes
       await this.detectNewCharacters(projectId, ep.content as string);
+      await this.detectNewScenes(projectId, ep.content as string, epNum);
     }
+  }
+
+  private async detectNewScenes(projectId: string, content: string, epNum: number) {
+    try {
+      const sceneMatches = content.match(/【(.+?)】/g);
+      if (!sceneMatches || sceneMatches.length === 0) return;
+
+      const existingScenes = await this.collectExistingScenes(projectId);
+      const newScenes: string[] = [];
+      for (const m of sceneMatches) {
+        const scene = m.replace(/【|】/g, "").trim();
+        if (scene.length >= 2 && scene.length <= 20 && !existingScenes.includes(scene) && !newScenes.includes(scene)) {
+          newScenes.push(scene);
+        }
+      }
+      if (newScenes.length > 0) {
+        await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
+          `第${epNum}集检测到${newScenes.length}个新场景：${newScenes.join("、")}。建议更新场景清单。`);
+      }
+    } catch { /* ignore */ }
+  }
+
+  private async collectExistingScenes(projectId: string): Promise<string[]> {
+    const episodes = await this.prisma.projectEpisode.findMany({
+      where: { projectId },
+      select: { content: true },
+    });
+    const scenes = new Set<string>();
+    for (const ep of episodes) {
+      const matches = ep.content.match(/【(.+?)】/g);
+      if (matches) {
+        for (const m of matches) {
+          const s = m.replace(/【|】/g, "").trim();
+          if (s.length >= 2 && s.length <= 20) scenes.add(s);
+        }
+      }
+    }
+    return Array.from(scenes);
   }
 
   private async detectNewCharacters(projectId: string, content: string) {

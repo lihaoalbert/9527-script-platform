@@ -368,7 +368,7 @@ export default function StudioPage() {
         const disposition = res.headers.get("Content-Disposition") || "";
         const match = disposition.match(/filename="?(.+?)"?$/);
         a.href = url;
-        a.download = match?.[1] || "剧本.md";
+        a.download = match?.[1] ? decodeURIComponent(match[1]) : "剧本.md";
         a.click();
         URL.revokeObjectURL(url);
       }

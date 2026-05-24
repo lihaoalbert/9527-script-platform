@@ -249,11 +249,16 @@ export default function StudioPage() {
         body: JSON.stringify({ content, targetPersona: persona }),
       });
       if (res.ok) {
-        const { userMessage: serverUserMsg, aiMessage } = await res.json();
-        // Replace optimistic user message with server version, add AI response
-        setMessages((prev) => prev.map((m) => m.id === userMsg.id ? serverUserMsg : m).concat(aiMessage));
+        const data = await res.json();
+        const aiMsg = data.aiMessage;
+        // Append AI response to messages
+        if (aiMsg) {
+          setMessages((prev) => [...prev, aiMsg]);
+        }
         const detailRes = await authFetch(`${API}/studio/projects/${activeProjectId}`);
         if (detailRes.ok) setProjectDetail(await detailRes.json());
+      } else {
+        setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: "SYSTEM", content: `请求失败（${res.status}）`, phase: null, step: null, decision: null, createdAt: new Date().toISOString() }]);
       }
     } catch (e) {
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: "SYSTEM", content: `发送失败：${e}`, phase: null, step: null, decision: null, createdAt: new Date().toISOString() }]);

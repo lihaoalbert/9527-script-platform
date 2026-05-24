@@ -154,6 +154,7 @@ export class StudioService {
 
     // 2. Assemble context and call AI
     let aiResponse: { content: string; data?: Record<string, unknown> };
+    let detectedPhase: ProjectPhase = "STORY_KERNEL";
     try {
       const project = this.prisma.enabled
         ? await this.prisma.project.findUnique({ where: { id: projectId } })
@@ -161,7 +162,7 @@ export class StudioService {
       const currentPhase = (project?.currentPhase ?? "STORY_KERNEL") as ProjectPhase;
 
       // Detect what phase the user is actually asking about (for reviewer in manual mode)
-      const detectedPhase = input.targetPersona === "reviewer"
+      detectedPhase = input.targetPersona === "reviewer"
         ? this.detectPhaseFromMessage(input.content, currentPhase)
         : currentPhase;
 
@@ -227,7 +228,7 @@ export class StudioService {
         // 4. Process data updates (non-critical, don't break on error)
         if (aiResponse.data && project) {
           try {
-            await this.processAiData(projectId, input.targetPersona, project.currentPhase as ProjectPhase, aiResponse.data);
+            await this.processAiData(projectId, input.targetPersona, detectedPhase, aiResponse.data);
           } catch { /* plan update failed, but response is already saved */ }
         }
       } catch (dbError) {

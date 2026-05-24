@@ -129,6 +129,22 @@ export class MemoryService {
       parts.push("【分集大纲】⚠️ 尚未定义！请先完成分集大纲。");
     }
 
+    // Production notes — style directives, tone requirements, creative constraints
+    if (plan.productionNotes) {
+      const notes = plan.productionNotes as Record<string, unknown>;
+      if (notes && Object.keys(notes).length > 0) {
+        const coreSellingPoint = notes.coreSellingPoint ?? "";
+        const risks = Array.isArray(notes.risks) ? notes.risks.join("；") : "";
+        const angles = Array.isArray(notes.promotionAngles) ? notes.promotionAngles.join("；") : "";
+        const target = notes.targetAudience ?? "";
+        parts.push(`【制作要点 & 风格要求 ⚠️ 必须遵守】
+核心卖点：${coreSellingPoint}
+目标受众：${target}
+风险与对策：${risks}
+宣发角度：${angles}`);
+      }
+    }
+
     // Collect scenes from locked episodes
     const scenes = await this.collectScenes(projectId);
     if (scenes.length > 0) {
@@ -137,7 +153,7 @@ export class MemoryService {
 
     if (parts.length === 0) return header + "暂无内容。";
 
-    return header + "⚠️ 以下内容必须严格遵守。跨集逻辑、角色名称/身份/场景名称、世界规则不得自相矛盾。\n\n" + parts.join("\n\n");
+    return header + "⚠️ 以下内容必须严格遵守。风格要求、人物设定、世界规则不得偏离。跨集逻辑、角色/场景名称不得自相矛盾。\n\n" + parts.join("\n\n");
   }
 
   private async collectScenes(projectId: string): Promise<string[]> {

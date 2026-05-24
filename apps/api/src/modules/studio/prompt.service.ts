@@ -86,6 +86,11 @@ data.characters JSON Schema（数组）：
     template: `【任务：设计分集大纲】
 每集包含标题、核心事件、结尾钩子（必须具体：在谁面前揭穿什么，导致谁必须做什么选择）。
 
+【风格检查（生成每集前确认）】
+1. 本集的喜剧元素/笑点是什么？具体写出来（不要笼统说"有笑点"）
+2. 是否符合制作要点中的风格要求？（喜剧为表、讽刺笑点等）
+3. 是否与故事内核的基调一致？
+
 data.episodeOutlines JSON Schema（数组）：
 [{
   "episodeNumber": 1,
@@ -93,6 +98,7 @@ data.episodeOutlines JSON Schema（数组）：
   "coreEvent": "string (核心事件)",
   "hook": "string (结尾钩子，具体)",
   "emotionalPeak": "string (情绪高点)",
+  "comedyMoment": "string (本集喜剧亮点)",
   "infoRevealed": "string (揭示的信息)",
   "subplotProgress": "string (支线进展)"
 }]`,
@@ -164,6 +170,7 @@ data JSON Schema（必须输出，否则修改不会保存）：
     title: "审核 — 分集大纲",
     template: `【任务：审查分集大纲】
 审查节奏是否有尿点、钩子是否够强、支线比例、转折点冲击力。
+同时检查：制作要点中的风格要求是否落实？（如：喜剧元素、笑点密度、讽刺角度等）
 
 【重要】你必须输出一个合法JSON对象。content字段写审核评语，data字段必须包含total（数字0-100）、locked（布尔）和suggestions（字符串数组）。评分≥90时locked必须为true。`,
   },

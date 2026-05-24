@@ -937,67 +937,39 @@ export default function StudioPage() {
 function PlanSection({ title, data, isArray, onMaximize }: { title: string; data: Record<string, unknown> | Record<string, unknown>[]; isArray?: boolean; onMaximize: (title: string, content: string) => void }) {
   const actuallyArray = isArray || Array.isArray(data);
   const isEmpty = actuallyArray ? (Array.isArray(data) ? data.length : 0) === 0 : Object.keys(data as Record<string, unknown>).length === 0;
-  const [open, setOpen] = useState(!isEmpty);
-
-  useEffect(() => {
-    if (!isEmpty) setOpen(true);
-  }, [isEmpty]);
-
   const fullContent = JSON.stringify(data, null, 2);
+
+  // Build a short preview line
+  let preview = "";
+  if (!isEmpty) {
+    if (actuallyArray) {
+      const arr = Array.isArray(data) ? data : [];
+      preview = arr.map((item: Record<string, unknown>) => item.name || item.title || `#${arr.indexOf(item) + 1}`).join("、");
+    } else {
+      const obj = data as Record<string, unknown>;
+      const keys = Object.keys(obj);
+      preview = keys.slice(0, 3).map((k) => `${fieldLabel(k)}: ${String(obj[k]).slice(0, 40)}`).join(" · ");
+      if (keys.length > 3) preview += " ...";
+    }
+  }
 
   return (
     <div className="planSection">
-      <div className="planSectionHeader" onClick={() => setOpen(!open)}>
+      <div className="planSectionHeader" onClick={() => onMaximize(title, fullContent)}>
         <span>{title}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {!isEmpty && (
-            <button className="maxBtn" onClick={(e) => { e.stopPropagation(); onMaximize(title, fullContent); }} title="全屏查看">
-              <Maximize2 size={14} />
-            </button>
+          {isEmpty ? (
+            <span className="planSectionStatus">待完善</span>
+          ) : (
+            <>
+              <span style={{ fontSize: 11, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{preview}</span>
+              <button className="maxBtn" onClick={(e) => { e.stopPropagation(); onMaximize(title, fullContent); }} title="全屏查看">
+                <Maximize2 size={14} />
+              </button>
+            </>
           )}
-          <span className="planSectionStatus">{isEmpty ? "待完善" : open ? "收起" : "展开"}</span>
         </div>
       </div>
-      {open && (
-        <div className="planSectionBody">
-          {isEmpty ? (
-            <p className="planHint">此部分尚未填写，在对话中与编剧小Q讨论完善。</p>
-          ) : (isArray || Array.isArray(data)) ? (
-            <div className="planFields">
-              {(Array.isArray(data) ? data : []).map((item, i) => (
-                <div key={i} className="planCard">
-                  <div className="planCardIndex">{item.episodeNumber ? `第${item.episodeNumber}集` : item.name ? String(item.name) : `#${i + 1}`}</div>
-                  <div className="planCardBody">
-                    {Object.entries(item).filter(([k]) => !["episodeNumber", "name"].includes(k) || !item.episodeNumber).map(([k, v]) => (
-                      <div key={k} className="planField">
-                        <span className="planFieldLabel">{k}</span>
-                        <span className="planFieldValue">
-                          {typeof v === "string" ? v : Array.isArray(v) ? v.map((x, j) => <div key={j} className="planFieldNested">{typeof x === "object" ? JSON.stringify(x) : String(x)}</div>) : JSON.stringify(v)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="planFields">
-              {Object.entries(data as Record<string, unknown>).map(([k, v]) => (
-                <div key={k} className="planField">
-                  <span className="planFieldLabel">{fieldLabel(k)}</span>
-                  <span className="planFieldValue">
-                    {Array.isArray(v)
-                      ? v.map((x, j) => <div key={j} className="planFieldNested">{typeof x === "object" ? JSON.stringify(x, null, 1) : String(x)}</div>)
-                      : typeof v === "object" && v !== null
-                        ? <pre className="planFieldJson">{JSON.stringify(v, null, 2)}</pre>
-                        : String(v)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -206,27 +206,33 @@ export class StudioService {
     };
 
     if (this.prisma.enabled) {
-      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
-      aiMessage.phase = project?.currentPhase ?? undefined;
+      try {
+        const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+        aiMessage.phase = project?.currentPhase ?? undefined;
 
-      // Determine if this response contains a decision
-      if (aiResponse.data && project) {
-        aiMessage.decision = { role: input.targetPersona, phase: project.currentPhase, ...aiResponse.data };
-      }
+        if (aiResponse.data && project) {
+          aiMessage.decision = { role: input.targetPersona, phase: project.currentPhase, ...aiResponse.data };
+        }
 
-      await this.prisma.conversationMessage.create({
-        data: {
-          projectId,
-          role: input.targetPersona === "writer" ? "WRITER" : "REVIEWER",
-          content: aiResponse.content,
-          phase: aiMessage.phase,
-          decision: (aiMessage.decision ?? undefined) as Prisma.InputJsonValue,
-        },
-      });
+        await this.prisma.conversationMessage.create({
+          data: {
+            projectId,
+            role: input.targetPersona === "writer" ? "WRITER" : "REVIEWER",
+            content: aiResponse.content,
+            phase: aiMessage.phase,
+            decision: (aiMessage.decision ?? undefined) as Prisma.InputJsonValue,
+          },
+        });
 
-      // 4. Process data updates based on phase and role
-      if (aiResponse.data) {
-        await this.processAiData(projectId, input.targetPersona, project!.currentPhase as ProjectPhase, aiResponse.data);
+        // 4. Process data updates (non-critical, don't break on error)
+        if (aiResponse.data && project) {
+          try {
+            await this.processAiData(projectId, input.targetPersona, project.currentPhase as ProjectPhase, aiResponse.data);
+          } catch { /* plan update failed, but response is already saved */ }
+        }
+      } catch (dbError) {
+        console.error("Failed to save message to DB:", dbError);
+        // Return the AI response even if DB save fails
       }
     }
 

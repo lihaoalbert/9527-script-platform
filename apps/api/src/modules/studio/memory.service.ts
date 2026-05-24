@@ -92,34 +92,46 @@ export class MemoryService {
     }
 
     const header = locked
-      ? "=== 项目宪法（已锁定）===\n以下内容已三方认可，后续创作必须遵守，不得偏离。\n"
-      : "=== 当前规划（未锁定）===\n以下为当前已确定的内容，后续讨论中仍可调整。\n";
+      ? "=== 项目宪法（已锁定，不可违背）===\n"
+      : "=== 当前规划（未锁定）===\n";
 
     const parts: string[] = [];
 
     const kernel = plan.storyKernel as Record<string, unknown> | undefined;
     if (kernel && Object.keys(kernel).length > 0) {
-      parts.push(`【故事内核】\n${JSON.stringify(kernel, null, 2)}`);
+      parts.push(`【故事内核】\nLogline: ${kernel.logline ?? "无"}\n主题: ${kernel.theme ?? "无"}\n情感钩子: ${kernel.emotionalHook ?? "无"}\n创作路径: ${kernel.chosenPath ?? "无"}`);
     }
 
     const world = plan.worldBuilding as Record<string, unknown> | undefined;
     if (world && Object.keys(world).length > 0) {
-      parts.push(`【世界观】\n${JSON.stringify(world, null, 2)}`);
+      const rules = Array.isArray(world.rules) ? world.rules.join("；") : "无";
+      const hidden = Array.isArray(world.hiddenInfo) ? world.hiddenInfo.join("；") : "无";
+      parts.push(`【世界观】\n设定: ${world.setting ?? "无"}\n硬规则: ${rules}\n隐藏信息: ${hidden}\n权力结构: ${world.powerStructure ?? "无"}`);
     }
 
     const chars = plan.characters as Array<Record<string, unknown>> | undefined;
     if (chars && chars.length > 0) {
-      parts.push(`【角色】\n${JSON.stringify(chars, null, 2)}`);
+      const charList = chars.map((c: Record<string, unknown>) =>
+        `- ${c.name ?? "?"}（${c.role ?? "?"}）：${c.traits ?? ""}，欲望：${c.surfaceDesire ?? ""}，软肋：${c.fear ?? ""}，弧线：${c.arc ?? ""}`
+      ).join("\n");
+      parts.push(`【角色清单（${chars.length}人，剧本中出现的所有角色必须在下列清单中）】\n${charList}`);
+    } else {
+      parts.push("【角色清单】⚠️ 尚未定义任何角色！请先完成人物塑造。");
     }
 
     const outlines = plan.episodeOutlines as Array<Record<string, unknown>> | undefined;
     if (outlines && outlines.length > 0) {
-      parts.push(`【分集大纲】\n${JSON.stringify(outlines, null, 2)}`);
+      const olList = outlines.map((o: Record<string, unknown>) =>
+        `第${o.episodeNumber ?? "?"}集《${o.title ?? ""}》：${o.coreEvent ?? ""} | 钩子: ${o.hook ?? ""}`
+      ).join("\n");
+      parts.push(`【分集大纲（${outlines.length}集）每集必须按此大纲创作】\n${olList}`);
+    } else {
+      parts.push("【分集大纲】⚠️ 尚未定义！请先完成分集大纲。");
     }
 
     if (parts.length === 0) return header + "暂无内容。";
 
-    return header + parts.join("\n\n");
+    return header + "⚠️ 以下内容必须严格遵守。跨集逻辑、角色名称/身份、世界规则不得自相矛盾。\n\n" + parts.join("\n\n");
   }
 
   private async getLayer2(projectId: string, phase: ProjectPhase): Promise<string> {

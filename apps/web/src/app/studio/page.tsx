@@ -128,6 +128,8 @@ export default function StudioPage() {
   const [mentionIdx, setMentionIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => { setMentionIdx(0); }, [input.lastIndexOf("@")]);
+
   const MENTIONS = [
     { role: "writer" as const, name: WRITER_PERSONA.name, color: WRITER_PERSONA.color },
     { role: "reviewer" as const, name: REVIEWER_PERSONA.name, color: REVIEWER_PERSONA.color },
@@ -150,14 +152,21 @@ export default function StudioPage() {
       const afterAt = val.slice(lastAt);
       const hasSpace = afterAt.includes(" ");
       const mentionLen = afterAt.split(/\s/)[0].length;
-      if (!hasSpace && mentionLen >= 1 && mentionLen <= 6) {
+      if (!hasSpace && mentionLen >= 1 && mentionLen <= 15) {
         setShowMentions(true);
-        setMentionIdx(0);
         return;
       }
     }
     setShowMentions(false);
   }
+
+  const filteredMentions = (() => {
+    const lastAt = input.lastIndexOf("@");
+    if (lastAt < 0) return MENTIONS;
+    const query = input.slice(lastAt + 1).split(/\s/)[0].toLowerCase();
+    if (!query) return MENTIONS;
+    return MENTIONS.filter((m) => m.name.toLowerCase().includes(query));
+  })();
 
   function selectMention(persona: typeof MENTIONS[0]) {
     const lastAt = input.lastIndexOf("@");
@@ -172,9 +181,9 @@ export default function StudioPage() {
 
   function handleInputKeyDown(e: React.KeyboardEvent) {
     if (showMentions) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => Math.min(i + 1, MENTIONS.length - 1)); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => Math.min(i + 1, filteredMentions.length - 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => Math.max(i - 1, 0)); return; }
-      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(MENTIONS[mentionIdx]); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(filteredMentions[mentionIdx]); return; }
       if (e.key === "Escape") { setShowMentions(false); return; }
     }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); }
@@ -648,9 +657,9 @@ export default function StudioPage() {
 
         <div className="chatInput">
           <div className="chatInputWrapper">
-            {showMentions && (
+            {showMentions && filteredMentions.length > 0 && (
               <div className="mentionDropdown">
-                {MENTIONS.map((m, i) => (
+                {filteredMentions.map((m, i) => (
                   <button
                     key={m.role === "character" ? `char-${m.name}` : m.role}
                     className={`mentionItem ${i === mentionIdx ? "active" : ""}`}

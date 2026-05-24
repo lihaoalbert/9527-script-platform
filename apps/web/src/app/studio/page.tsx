@@ -36,6 +36,7 @@ type ProjectDetail = {
 type MessageData = {
   id: string; role: "USER" | "WRITER" | "REVIEWER" | "SYSTEM";
   content: string; phase: string | null; step: number | null; decision: Record<string, unknown> | null;
+  agentName?: string | null;
   createdAt: string;
 };
 
@@ -130,6 +131,13 @@ export default function StudioPage() {
   const MENTIONS = [
     { role: "writer" as const, name: WRITER_PERSONA.name, color: WRITER_PERSONA.color },
     { role: "reviewer" as const, name: REVIEWER_PERSONA.name, color: REVIEWER_PERSONA.color },
+    ...(projectDetail?.plan?.characters
+      ? (projectDetail.plan.characters as Array<Record<string, unknown>>).map((c) => ({
+          role: "character" as const,
+          name: String(c.name ?? ""),
+          color: "#8b5cf6",
+        }))
+      : []),
   ];
 
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -155,7 +163,9 @@ export default function StudioPage() {
     const lastAt = input.lastIndexOf("@");
     const before = input.slice(0, lastAt);
     setInput(before + `@${persona.name} `);
-    setActivePersona(persona.role);
+    if (persona.role === "writer" || persona.role === "reviewer") {
+      setActivePersona(persona.role);
+    }
     setShowMentions(false);
     textareaRef.current?.focus();
   }
@@ -571,22 +581,27 @@ export default function StudioPage() {
           {messages.map((msg) => {
             const persona = msg.role === "WRITER" ? WRITER_PERSONA : msg.role === "REVIEWER" ? REVIEWER_PERSONA : null;
             const isSystem = msg.role === "SYSTEM";
+            const isCharacter = !!(msg as any).agentName;
+            const charName = (msg as any).agentName || "";
             return (
-              <div key={msg.id} className={`message ${msg.role.toLowerCase()} ${isSystem ? "system" : ""}`}>
-                {persona && (
+              <div key={msg.id} className={`message ${isCharacter ? "character" : msg.role.toLowerCase()} ${isSystem && !isCharacter ? "system" : ""}`}>
+                {isCharacter ? (
+                  <div className="messageAvatar" style={{ background: "#8b5cf6" }}>
+                    <User size={16} />
+                  </div>
+                ) : persona ? (
                   <div className="messageAvatar" style={{ background: persona.color }}>
                     {persona.avatar}
                   </div>
-                )}
-                {msg.role === "USER" && (
+                ) : msg.role === "USER" ? (
                   <div className="messageAvatar userAvatar"><User size={16} /></div>
-                )}
-                {isSystem && (
+                ) : (
                   <div className="messageAvatar systemAvatar"><Sparkles size={16} /></div>
                 )}
                 <div className="messageContent">
+                  {isCharacter && <div className="messageName">🎭 {charName}</div>}
                   {persona && <div className="messageName">{persona.name}</div>}
-                  {isSystem && <div className="messageName">系统</div>}
+                  {isSystem && !isCharacter && <div className="messageName">系统</div>}
                   <div className="messageText">{msg.content}</div>
                   {msg.decision && msg.role !== "SYSTEM" && (
                     <div className="messageDecision">

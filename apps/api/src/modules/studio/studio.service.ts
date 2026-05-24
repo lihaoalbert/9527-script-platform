@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../common/prisma.service";
 import { AiService } from "../ai/ai.service";
+import { CharacterAgentService } from "./character-agent.service";
 import { MemoryService } from "./memory.service";
 
 type ProjectPhase = "STORY_KERNEL" | "WORLD_BUILDING" | "CHARACTERS" | "EPISODE_OUTLINES" | "PRODUCTION_NOTES" | "EPISODE_GENERATION";
@@ -25,7 +26,8 @@ export class StudioService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-    private readonly memoryService: MemoryService
+    private readonly memoryService: MemoryService,
+    private readonly characterAgentService: CharacterAgentService,
   ) {}
 
   // ─── Project CRUD ───
@@ -125,7 +127,13 @@ export class StudioService {
   // ─── Chat / Message Handling ───
 
   async sendMessage(projectId: string, input: SendMessageInput) {
-    // 1. Save user message
+    // 1. Check if user is talking to a character agent
+    const characterName = await this.detectCharacterMention(projectId, input.content);
+    if (characterName) {
+      return this.handleCharacterChat(projectId, characterName, input.content);
+    }
+
+    // 2. Save user message
     const userMessage = {
       id: `user-${Date.now()}`,
       projectId,
@@ -236,6 +244,61 @@ export class StudioService {
         // Return the AI response even if DB save fails
       }
     }
+
+    return { userMessage, aiMessage };
+  }
+
+  private async detectCharacterMention(projectId: string, content: string): Promise<string | null> {
+    const chars = await this.characterAgentService.getCharacters(projectId);
+    for (const c of chars) {
+      if (content.includes(`@${c.name}`)) return c.name;
+      if (content.startsWith(`${c.name}，`) || content.startsWith(`${c.name}，`)) return c.name;
+    }
+    return null;
+  }
+
+  private async handleCharacterChat(projectId: string, characterName: string, content: string) {
+    const phase = "EPISODE_GENERATION";
+    const cleanContent = content.replace(`@${characterName}`, "").trim() || "你好";
+
+    // Save user message
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      projectId,
+      role: "USER" as const,
+      content,
+      phase: undefined as ProjectPhase | undefined,
+      createdAt: new Date(),
+    };
+
+    if (this.prisma.enabled) {
+      await this.prisma.conversationMessage.create({
+        data: { projectId, role: "USER", content, phase },
+      });
+    }
+
+    // Get character response
+    const { content: charContent } = await this.characterAgentService.speak(
+      projectId, characterName, cleanContent, phase,
+    );
+
+    // Save character response
+    if (this.prisma.enabled) {
+      await this.prisma.conversationMessage.create({
+        data: { projectId, role: "SYSTEM", content: charContent, agentName: characterName },
+      });
+      await this.characterAgentService.saveMemory(projectId, characterName, `用户：${cleanContent}`);
+      await this.characterAgentService.saveMemory(projectId, characterName, `${characterName}：${charContent}`);
+    }
+
+    const aiMessage = {
+      id: `character-${Date.now()}`,
+      projectId,
+      role: "SYSTEM" as const,
+      content: charContent,
+      phase: undefined as ProjectPhase | undefined,
+      createdAt: new Date(),
+    };
 
     return { userMessage, aiMessage };
   }

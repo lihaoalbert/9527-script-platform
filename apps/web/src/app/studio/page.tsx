@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Shield, Send, LoaderCircle, Sparkles, Plus, FileText,
   User, ChevronRight, X, CheckCircle2, Lock, ArrowRight, Settings, FolderOpen, Save,
-  Download, Upload, Trash2, EyeOff, Maximize2, Unlock,
+  Download, Upload, Trash2, EyeOff, Maximize2, Unlock, MapPin,
 } from "lucide-react";
 
 // ─── Types ───
@@ -74,7 +74,7 @@ export default function StudioPage() {
   const [activePersona, setActivePersona] = useState<"writer" | "reviewer">("writer");
 
   // Right panel
-  const [rightView, setRightView] = useState<"plan" | "episode" | "scores" | "prompts">("plan");
+  const [rightView, setRightView] = useState<"plan" | "episode" | "scores" | "prompts" | "scenes">("plan");
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
 
   // Auto mode
@@ -654,7 +654,26 @@ export default function StudioPage() {
 
       {/* Right Panel — Plan / Episode / Prompts View */}
       <aside className="studioRight">
-        {rightView === "prompts" ? (
+        {rightView === "scenes" && projectDetail ? (
+          <div className="episodeView">
+            <div className="rightHeader">
+              <h2>场景清单</h2>
+              <button className="viewPlanToggle" onClick={() => setRightView("episode")}>
+                <FileText size={14} /> 返回分集
+              </button>
+            </div>
+            <div className="episodeList">
+              {getScenes(projectDetail.episodes).map((s) => (
+                <div key={s} className="episodeItem" style={{ cursor: "default" }}>
+                  <span>【{s}】</span>
+                </div>
+              ))}
+              {getScenes(projectDetail.episodes).length === 0 && (
+                <div className="emptyState"><p>暂无场景，在剧本中用【场景名】标记</p></div>
+              )}
+            </div>
+          </div>
+        ) : rightView === "prompts" ? (
           <div className="promptManager">
             <div className="rightHeader">
               <h2>提示词管理</h2>
@@ -739,9 +758,16 @@ export default function StudioPage() {
               <h2>
                 {selectedEpisode ? `第${selectedEpisode}集` : "分集列表"}
               </h2>
-              <button className="viewPlanToggle" onClick={() => setRightView("plan")}>
-                <FileText size={14} /> 规划书
-              </button>
+              <div style={{ display: "flex", gap: 6 }}>
+                {projectDetail.episodes.some((e) => e.content.includes("【")) && (
+                  <button className="viewPlanToggle" onClick={() => setRightView("scenes")}>
+                    <MapPin size={14} /> 场景清单
+                  </button>
+                )}
+                <button className="viewPlanToggle" onClick={() => setRightView("plan")}>
+                  <FileText size={14} /> 规划书
+                </button>
+              </div>
             </div>
             {!selectedEpisode ? (
               <div className="episodeList">
@@ -950,6 +976,15 @@ function fieldLabel(key: string): string {
     title: "标题",
   };
   return labels[key] ?? key;
+}
+
+function getScenes(episodes: Array<{ content: string }>): string[] {
+  const s = new Set<string>();
+  for (const ep of episodes) {
+    const matches = ep.content.match(/【(.+?)】/g);
+    if (matches) matches.forEach((m) => { const n = m.replace(/【|】/g, "").trim(); if (n.length >= 2) s.add(n); });
+  }
+  return Array.from(s).sort();
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {

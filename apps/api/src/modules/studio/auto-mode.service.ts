@@ -160,8 +160,19 @@ export class AutoModeService {
         return;
       }
 
+      // Force-lock the episode (reviewer's locked flag may be unreliable)
+      const episode = await this.prisma.projectEpisode.findUnique({
+        where: { projectId_episodeNumber: { projectId, episodeNumber: epNum } },
+      });
+      if (episode) {
+        await this.prisma.projectEpisode.update({
+          where: { id: episode.id },
+          data: { status: "LOCKED" },
+        });
+      }
+
       await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
-        `自动模式：第${epNum}集已达标锁定。`);
+        `自动模式：第${epNum}集已达标锁定（90分以上）。`);
       await this.delay(2000 + Math.random() * 1000);
     }
 

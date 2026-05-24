@@ -350,8 +350,7 @@ ${feedback}
         },
       });
 
-      // Auto-detect new characters and scenes
-      await this.detectNewCharacters(projectId, ep.content as string);
+      // Auto-detect new scenes (character detection too unreliable, removed)
       await this.detectNewScenes(projectId, ep.content as string, epNum);
     }
   }
@@ -394,33 +393,9 @@ ${feedback}
     return Array.from(scenes);
   }
 
-  private async detectNewCharacters(projectId: string, content: string) {
-    try {
-      const plan = await this.prisma.projectPlan.findUnique({ where: { projectId } });
-      if (!plan) return;
-      const existingChars = (plan.characters as Array<Record<string, unknown>>) ?? [];
-      const knownNames = new Set(existingChars.map((c) => c.name as string));
-
-      // Simple Chinese name detection: 2-3 chars followed by common dialogue/action indicators
-      const namePattern = /([一-鿿]{2,3})(?:说道|说|道|：|笑|叹|喊|叫|问|答|点头|摇头|走来|跑去|转身|回头|一怔|一惊|一楞)/g;
-      const found = new Set<string>();
-      let match;
-      while ((match = namePattern.exec(content)) !== null) {
-        const name = match[1];
-        if (!knownNames.has(name) && !found.has(name)) {
-          found.add(name);
-        }
-      }
-
-      if (found.size > 0) {
-        const newNames = Array.from(found);
-        await this.saveSystemMessage(projectId, "EPISODE_GENERATION",
-          `检测到${newNames.length}个未录入角色清单的新名字：${newNames.join("、")}。建议在角色清单中补充这些配角的档案，以确保跨集一致性。`);
-      }
-    } catch {
-      // Non-critical, ignore errors
-    }
-  }
+  // Character auto-detection disabled — regex too unreliable for Chinese names.
+  // The reviewer's constitution checklist is the proper mechanism for catching unlisted characters.
+  private async detectNewCharacters(_projectId: string, _content: string) {}
 
   // ─── Reviewer Turns ───
 

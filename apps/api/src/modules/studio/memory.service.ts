@@ -173,13 +173,19 @@ export class MemoryService {
         lines.push(`项目状态：${project.status}`);
       }
 
-      // Check for locked episodes
+      // Check for locked episodes and include their summaries
       const lockedEpisodes = await this.prisma.projectEpisode.findMany({
         where: { projectId, status: "LOCKED" },
         orderBy: { episodeNumber: "asc" },
       });
       if (lockedEpisodes.length > 0) {
         lines.push(`已锁定分集：${lockedEpisodes.map((e) => `第${e.episodeNumber}集`).join("、")}`);
+        lines.push("【已锁定集内容摘要】");
+        for (const ep of lockedEpisodes) {
+          // Extract first 200 chars as a summary
+          const summary = ep.content.replace(/【.+?】/g, "").slice(0, 200).replace(/\n/g, " ");
+          lines.push(`第${ep.episodeNumber}集《${ep.title}》：${summary}...`);
+        }
       }
 
       // Get recent decisions

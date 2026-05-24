@@ -626,14 +626,14 @@ export class StudioService {
     const project = await this.getProject(projectId);
     const plan = project.plan;
     const episodes = project.episodes ?? [];
-    const lockedEpisodes = episodes.filter((e) => e.status === "LOCKED");
+    const hasContent = episodes.filter((e) => e.content?.length > 0);
 
     const lines: string[] = [];
 
     lines.push(`# ${project.name}`);
     if (project.genre) lines.push(`\n**题材**：${project.genre}`);
     lines.push(`\n**状态**：${project.status === "COMPLETED" ? "已完成" : "创作中"}`);
-    lines.push(`**分集**：${lockedEpisodes.length} 集已锁定\n`);
+    lines.push(`**分集**：${hasContent.length} 集已锁定\n`);
     lines.push("---\n");
 
     // Plan section
@@ -682,9 +682,9 @@ export class StudioService {
     }
 
     // Episodes
-    if (lockedEpisodes.length > 0) {
+    if (hasContent.length > 0) {
       lines.push("## 剧本正文\n");
-      for (const ep of lockedEpisodes) {
+      for (const ep of hasContent) {
         lines.push(`### ${ep.title}\n`);
         lines.push(ep.content);
         if (ep.score) {
